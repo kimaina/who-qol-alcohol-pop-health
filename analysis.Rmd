@@ -1,0 +1,810 @@
+---
+title: "EVALUATING THE BENEFITS, BARRIERS AND FACILITATORS OF GROUP INTERVENTIONS AMONG PERSONS BATTLING ALCOHOL AND DRUG ABUSE IN TURBO SUB-COUNTY, UASIN GISHU COUNTY"
+author: "Population Health"
+output: 
+  rmdformats::material:
+    self_contained: true
+    thumbnails: true
+    lightbox: true
+    gallery: false
+    highlight: tango
+
+---
+
+
+
+```{r setup, include=FALSE}
+options(java.parameters = "-Xmx15g")
+
+knitr::opts_chunk$set(warning=FALSE,
+                      message=FALSE,
+                      echo=FALSE,
+                      #dpi=96,
+                     # fig.width=7,# fig.height=4, # Default figure widths
+                     # dev="png", #dev.args=list(type="cairo"), # The png device
+                      # Change to dev="postscript" if you want the EPS-files
+                      # for submitting. Also remove the dev.args() as the postscript
+                      # doesn't accept the type="cairo" argument.
+                      error=FALSE)
+ 
+# Evaluate the figure caption after the plot
+#knitr::opts_knit$set(eval.after='fig.cap')
+ 
+# Use the table counter that the htmlTable() provides
+options(table_counter = TRUE)
+ 
+# Use the figCapNo() with roman letters
+#options(fig_caption_no_roman = TRUE)
+#options(kableExtra.latex.load_packages = F)
+
+# Then install the Grmd-package by running below code:
+#devtools::install_github("gforge/Grmd")
+
+#devtools::install_github("kassambara/easyGgplot2")
+library(easyGgplot2)
+
+# function to install missing packages
+ipak <- function(pkg){
+  new.pkg <- pkg[!(pkg %in% installed.packages()[, "Package"])]
+  if (length(new.pkg))
+    install.packages(new.pkg, dependencies = TRUE, repos='http://cran.rstudio.com/')
+  sapply(pkg, require, character.only = TRUE)
+}
+
+#install.packages('package_name', dependencies=TRUE, repos='http://cran.rstudio.com/')
+
+packages =c( "dplyr",  "readxl","Hmisc","Gmisc", "magrittr", "flextable", "MASS", "tidyverse", "caret", "knitr", "kableExtra","xtable", "stargazer", "ggpubr", "haven", "tidycomm", "gtable")
+
+ipak(packages)
+
+
+select = dplyr::select; summarize = dplyr::summarize; rename = dplyr::rename; mutate = dplyr::mutate;
+
+source("unbalanced_functions.R")
+
+```
+
+
+# Study Background:
+
+Use of alcohol and substances of abuse is a common health problem affecting about  10-16% of Kenyans. Most of the care is provided in inpatient rehabilitation centers which are not  accessible to a majority of the population due to the financial implications. Small community-based support groups have potential to increase accessibility of alcohol and drug abuse rehabilitation  services. As part of a care program to address the treatment gap for mental and substance, we  established 28 informal alcohol support groups in Turbo sub-county and these have been running  over the past two years. The goal of this study therefore is to objectively evaluate the benefits of these groups.  
+
+
+Analysis Objective: 
+
+1) To establish the benefits of community-based alcohol support groups on the perceived quality of  life of patients with alcohol and drug abuse disorders. 
+2) To assess the benefits of community-based alcohol support groups on alcohol drinking patterns  of the patients in terms of number of drinking days and the number of drinks per drinking day 
+ 3) To explore the existing social support systems for alcohol and substance abuse patients that would  facilitate recovery among group members.  
+4) To establish stigma and other barriers to effective participation in community alcohol support  groups.
+Population & Settings
+
+118 participants will be randomly sampled from the existing group members.
+Eligibility Criteria.  
+
+1. Persons who were screened and linked to community support groups in the sub-county.
+2. A support group member who has attended at least six group meetings. 
+3. Aged 18 years and above. 
+
+Exclusion criteria 
+
+1. Persons with alcohol use disorders within Turbo subcounty who hasn’t been enrolled into any  of the existing groups. 
+2. Persons who will present during the data collection session while drunk. 
+3. All members of the support groups aged below 18 years. 
+
+
+
+```{r warning=FALSE}
+
+describeMissing= function (x, html = TRUE, number_first = TRUE, percentage_sign = TRUE, 
+    language = "en", useNA.digits = 1, ...) {
+    
+    if (!any(is.na(x))) 
+        return(invisible())
+    df_arg_list <- list(x = is.na(x), html = html, number_first = number_first, 
+        percentage_sign = percentage_sign, language = language, 
+        digits = useNA.digits)
+    dot_args <- list(...)
+    for (n in names(dot_args)) {
+        if (!n %in% names(df_arg_list)) {
+            df_arg_list[[n]] <- dot_args[[n]]
+        }
+    }
+    missing <- fastDoCall(describeFactors, df_arg_list)
+   rownames(missing)<-c("FALSE","Missing")
+    return(missing["Missing", ])
+}
+
+desc_both <- function(x, ...) {
+    result <- c(
+      describeMean(x, useNA="no"),
+      describeMedian(x, useNA="no"),
+      describeMissing(x)
+    )
+    return(result)
+}
+
+desc_mean <- function(x, ...) {
+    result <- c(
+      describeMean(x, useNA="no"),
+      describeMissing(x)
+    )
+    return(result)
+ }
+ 
+
+desc_median <- function(x, ...) {
+    result <- c(
+      describeMedian(x, useNA="no"),
+      describeMissing(x)
+    )
+    return(result)
+ }
+
+ 
+ MainX<<-NULL
+# Creating a wrapper for getting descriptive statistics
+getTable1Stats <- function(x, y, cont_fx=desc_both, data=dataset, digits = 1,statistics = T,na.rm=na.rm.var){
+   MainX <<- append(MainX, c(x))
+  data=data%>%drop_na(all_of(y))
+  if(na.rm){
+    data=data%>%drop_na(all_of(x))
+  } 
+  getDescriptionStatsBy(x = data[[x]], 
+                        by = data[[y]],
+                        digits = digits,
+                        statistics = statistics,
+                        continuous_fn = cont_fx,
+                        hrzl_prop = T,
+                        total_col_show_perc = T,
+                        header_count = TRUE)
+  
+}
+
+relevelBy <- function(varList, data){
+  for (factorName in names(varList)) {
+    for(var in varList[[factorName]]){
+     # print(var)
+      data[[var]] =relevel(factor(data[[var]]),factorName)
+    }
+  }
+  return(data)
+}
+
+
+getMultipleTable1Stats <- function(x, y,y2,y3, cont_fx=desc_both, data=dataset, digits = 1,statistics = T,hrzl_prop = F,na.rm=na.rm.var){
+ # data=data%>%drop_na(all_of(y))
+  if(na.rm){
+    data=data%>%drop_na(all_of(x))
+  } 
+ yy1= getDescriptionStatsBy(x = data[[x]], 
+                        by = data[[y]],
+                        digits = digits,
+                        statistics = statistics,
+                        continuous_fn = cont_fx,
+                        hrzl_prop = hrzl_prop,
+                        total_col_show_perc = T,
+                        header_count = TRUE)
+ 
+ yy2= getDescriptionStatsBy(x = data[[x]], 
+                        by = data[[y2]],
+                        digits = digits,
+                        statistics = statistics,
+                        continuous_fn = cont_fx,
+                        hrzl_prop = hrzl_prop,
+                        total_col_show_perc = T,
+                        header_count = TRUE)
+ 
+ yy3= getDescriptionStatsBy(x = data[[x]], 
+                        by = data[[y3]],
+                        digits = digits,
+                        statistics = statistics,
+                        continuous_fn = cont_fx,
+                        hrzl_prop = hrzl_prop,
+                        total_col_show_perc = T,
+                        header_count = TRUE)
+  
+  
+  result <- tryCatch({
+    return(cbind(yy1,yy2,yy3))
+    
+    }, warning = function(war) {
+    
+      # warning handler picks up where error was generated
+      print(paste(x,"ERROR"))
+      print(paste("MY_WARNING:  ",war))
+     
+    
+    }, error = function(err) {
+    
+      # error handler picks up where error was generated
+      print(paste(x,"ERROR"))
+      print(paste("MY_ERROR:  ",err))
+      #return(f)
+    
+    }, finally = {
+    
+     # print(paste(x,"Done"))
+
+    }) # END tryCatch
+  
+}
+
+stargazer2 <- function(model, odd.ratio = F, ...) {
+  if(!("list" %in% class(model))) model <- list(model)
+    
+  if (odd.ratio) {
+    #exponentiate <- function(x) exp(x)
+    coefOR2 <- lapply(model, function(x) exp(coef(x)))
+    CIOR2 <- lapply(model, function(x) exp(confint(x)))
+    seOR2 <- lapply(model, function(x) exp(coef(x)) * summary(x)$coef[, 2])
+    p2 <- lapply(model, function(x) summary(x)$coefficients[, 4])
+    stargazer(model, coef = coefOR2, se = seOR2, p = p2,  ci.custom =CIOR2, ...)
+    
+  } else {
+    stargazer(model, ...)
+  }
+}
+
+generateInterpretation= function(outcome,topn,model.df){
+  
+  model.df%>%mutate(
+  interpretation=ifelse( term!="(Intercept)",paste("Fixing all else constant, a unit increase in ",tolower(variable_name),", changes the odds of ",outcome," by: ", estimate_or, " (",conf.low_or, "-",conf.high_or,") on average. In other words, the odds of ",outcome," changes by", 100 * (estimate_or - 1), "% due to each unit increase in ",tolower(variable_name)),paste("Not meaningful but can be roughly translated to the odds of ",outcome," which is ",estimate_or, " (",conf.low_or, "-",conf.high_or,") ,fixing all else constant")),
+  
+  interpretation=ifelse(categorical==T,paste("The odds of ",outcome," in ", tolower(variable_name), " is ", estimate_or, " (",conf.low_or, "-",conf.high_or,") times higher than the odds of ", outcome," in the reference group, fixing all else constant." ),interpretation )
+)%>%select(variable_name,interpretation )%>%
+  kable( "html", booktabs = T, longtable = F,  digits=2,
+         caption = paste("Model Interpretation | ",capitalize(outcome)) ) %>%
+  kable_styling(bootstrap_options = c("striped","hold_position","condensed","responsive"))
+  
+
+}
+
+generateLogitPlot= function(outcome,topn,model.df){
+  ggplot(model.df%>%top_n(topn,p.value), aes(estimate, variable_name, color = variable_name )) +
+      geom_point() + geom_errorbarh(aes(xmin = conf.low, xmax = conf.high)) + geom_vline(xintercept = 1, color = "blue", lty = 2) +
+      ggtitle( sprintf( paste("Precision Comparison | ",capitalize(outcome)) ) )+  xlab("Log Odds Ratio") + ylab("Covariate")+
+      theme_economist()+ guides(fill=FALSE, color=FALSE)+theme(plot.title = element_text(size=14, face="bold"))
+}
+
+```
+
+
+
+```{r warning=F}
+dataset = foreign::read.spss("TURB0 GROUP DATA ENTRY 8th Oct.sav", to.data.frame=TRUE)%>%
+  mutate(
+    age_cat=ifelse(age<18,"<18",NA),
+                     age_cat=ifelse( age>=18&age<=25,"18 – 25",age_cat),
+                     age_cat=ifelse( age>=26&age<=35,"26 – 35",age_cat),
+                     age_cat=ifelse( age>35,">35",age_cat),
+     ageoffirstdrink_cat=ifelse(ageoffirstdrink<18,"<18",NA),
+                     ageoffirstdrink_cat=ifelse( ageoffirstdrink>=18&ageoffirstdrink<=25,"18 – 25",ageoffirstdrink_cat),
+                     ageoffirstdrink_cat=ifelse( ageoffirstdrink>=26&ageoffirstdrink<=35,"26 – 35",ageoffirstdrink_cat),
+                     ageoffirstdrink_cat=ifelse( ageoffirstdrink>35,">35",ageoffirstdrink_cat),
+    alcoholicdrinkstakes_cat = case_when(
+                                   
+                                    str_detect(alcoholicdrinkstakes,"^busaa") ~ "busaa +",
+                                    str_detect(alcoholicdrinkstakes,"^chang") ~ "chang’aa +",
+                                    str_detect(alcoholicdrinkstakes,"^beer") ~ "beer +",
+                                    str_detect(alcoholicdrinkstakes,"none") ~ "none",
+                                    is.na(alcoholicdrinkstakes) ~ NA_character_,
+                                    TRUE ~ "others"),
+    othersubstances_cat = case_when(
+                                   
+                                    str_detect(othersubstances,"^cig") ~ "cigaratte +",
+                                    str_detect(othersubstances,"^sig") ~ "cigaratte +",
+                                    str_detect(othersubstances,"^bhang") ~ "bhang",
+                                    str_detect(othersubstances,"^t") ~ "tobacco +",
+                                    str_detect(othersubstances,"none") ~ "none",
+                                    is.na(othersubstances) ~ NA_character_,
+                                    TRUE ~ "others"),
+  )%>%mutate(
+                                   male=ifelse(gender=="male", 1,0),
+                                   married=ifelse(maritalstatus=="married", 1,0),
+                                   christian=ifelse(religion=="christian", 1,0),
+                                   educated=ifelse(education=="none", 0,1),
+                                   unemployed=ifelse(work=="unemployed", 1,0),
+                                   domain1_post=VAR00002, 
+                                   domain1_pre=VAR00004, 
+                                   domain2_post=VAR00006,
+                                   domain2_pre=VAR00008, 
+                                   domain3_post=VAR00010, 
+                                   domain3_pre=VAR00012, 
+                                   domain4_post=VAR00014, 
+                                   domain4_pre=VAR00016
+                                )
+
+```
+
+
+# Univariate Analysis
+
+Descriptive Analysis under the univariate setting will be applied to summarize central tendencies and distribution for metric variables. 
+
+* Categorical variables such as gender, marital status will be summarized using frequencies and percentages. 
+* Categorical variables derived from continuous variables such as  x1, x2 will be categorized using clinically acceptable limits derived from literature. 
+* Continuous variables that assume the Gaussian distribution will be summarized using mean and corresponding SD.
+* Continuous variables that are skewed will be summarized as median and the corresponding interquartile range (IQR). 
+* The test for normality assumptions will be done using the Shapiro-Wilks,Shapiro-Francia.
+* Missing values will be presented using frequency and % percentages
+
+
+## Table 1: Demographics and socio-economic characteristics
+```{r fig.align='center',warning=FALSE}
+na.rm.var=F;stats=T;outcome="gender";
+
+# Getting descriptive statistics 
+mergeDesc("Age (Years)" = getTable1Stats("age",outcome,desc_both,statistics=stats,na.rm=na.rm.var),
+          "Age (%)" = getTable1Stats("age_cat",outcome,desc_both,statistics=stats,na.rm=na.rm.var),
+         # "Gender" = getTable1Stats("gender",outcome,desc_both,statistics=stats,na.rm=na.rm.var),
+          "Marital status" =getTable1Stats("maritalstatus",outcome,desc_both,statistics=stats,na.rm=na.rm.var),  
+          "Religion" =getTable1Stats("religion",outcome,desc_both,statistics=stats,na.rm=na.rm.var),
+          
+          "Highest level of education" = getTable1Stats("education",outcome,desc_both,statistics=stats,na.rm=na.rm.var),
+          "Employment Status" = getTable1Stats("work",outcome,desc_both,statistics=stats,na.rm=na.rm.var),
+           "Estimated monthly income" = getTable1Stats("income",outcome,desc_both,statistics=stats,na.rm=na.rm.var),
+           "Currently living with" = getTable1Stats("currentfamily",outcome,desc_both,statistics=stats,na.rm=na.rm.var),
+           "Primary support system" = getTable1Stats("supportsystem",outcome,desc_both,statistics=stats,na.rm=na.rm.var),
+           "History of alcohol in the family" = getTable1Stats("familyalcoholhistory",outcome,desc_both,statistics=stats,na.rm=na.rm.var),
+           "Age of first alcoholic drink (Years)" = getTable1Stats("ageoffirstdrink",outcome,desc_both,statistics=stats,na.rm=na.rm.var),
+           "Age of first alcoholic drink (%)" = getTable1Stats("ageoffirstdrink_cat",outcome,desc_both,statistics=stats,na.rm=na.rm.var),
+           "First introduced to drinking by" = getTable1Stats("introductiontodrinking",outcome,desc_both,statistics=stats,na.rm=na.rm.var),
+           "Types of alcoholic drinks taken" = getTable1Stats("alcoholicdrinkstakes_cat",outcome,desc_both,statistics=stats,na.rm=na.rm.var),
+           #"Types of alcoholic drinks taken" = getTable1Stats("alcoholicdrinkstakes",outcome,desc_both,statistics=stats,na.rm=na.rm.var),
+           #"Other substances used" = getTable1Stats("othersubstances",outcome,desc_both,statistics=stats,na.rm=na.rm.var),
+           "Other substances used" = getTable1Stats("othersubstances_cat",outcome,desc_both,statistics=stats,na.rm=na.rm.var),
+          "Ever recieved care for substance related problems" =getTable1Stats("everreceivedcare",outcome,desc_median,statistics=stats,na.rm=na.rm.var)
+          )%>%
+   htmlTable( caption  = "<b> Demographics and socio-economic characteristics </b>",useViewer=T,ctable = TRUE, align = 'lcccc',
+              n.cgroup = c(1,2,1 ), cgroup = c('', 'Gender', '') ,tfoot="<sup>&Dagger;</sup>"
+              )%>% htmlTable::addHtmlTableStyle(col.rgroup = c("#FFF", "#EEF")) 
+
+
+
+```
+
+## Outcome (Domain) Correlation
+
+```{r fig.align='center',warning=FALSE}
+PerformanceAnalytics::chart.Correlation(dataset%>%
+                                          select(audit2,audit1,ismiscore, domain1_pre, domain1_post, domain2_pre,
+                                                 domain2_post, domain3_pre, domain3_post, domain4_pre, domain4_post), histogram=TRUE, pch=22)	
+
+
+```
+
+### Here is a table for only significant correlation coefficient
+
+```{r fig.align='center',warning=FALSE}
+
+dataset%>%
+  correlate( domain1_pre, domain1_post, domain2_pre, domain2_post, domain3_pre, domain3_post, domain4_pre, domain4_post,audit2,audit1,ismiscore,
+              male,married,christian,educated,unemployed, ageoffirstdrink)  %>% 
+  filter(p<=0.05) %>%
+  kable( "html", booktabs = T, longtable = F,  digits=2,
+         caption = paste("Model Interpretation | ",capitalize(outcome)) ) %>%
+  kable_styling(bootstrap_options = c("striped","hold_position","condensed","responsive"))
+
+```
+
+
+## Univariate Plots
+
+For each continuous column, visually check the following: 
+
+1. Variation in the column
+2. Its distribution
+3. Any outliers
+4. q-q plot with normal distribution
+
+
+```{r fig.align='center', cache=T, fig.width=5, warning=FALSE, eval=T}
+
+cont_univ_df <- dataset %>% select(
+              domain1_pre, domain1_post, domain2_pre, domain2_post, domain3_pre, domain3_post, domain4_pre, domain4_post,audit2,audit1,ismiscore,
+              ageoffirstdrink,age
+          ) %>% select_if(is.numeric) %>% dplyr::mutate(row_no =1:n() )
+
+for(column in colnames(cont_univ_df[-ncol(cont_univ_df)])){
+  
+  print(column)
+  p1 <- ggplot(cont_univ_df, aes_string(x='row_no', y= column)) +
+    geom_point(show.legend = FALSE) +
+    labs(x = 'Univariate plot', y=column) +
+    ggtitle(column) +
+    theme_minimal()
+
+  # Cumulative plot
+  legendcols <- c("Normal distribution"="darkred","Density"="darkBlue","Histogram"="lightBlue")
+  p2 <- ggplot(cont_univ_df,aes_string(x = column)) +
+    geom_histogram(aes(y=..density.., fill ="Histogram"), bins = 50) +
+    stat_function(fun = dnorm, aes(color="Normal distribution"),  size = 1,
+                args = list(mean = mean(cont_univ_df[[column]]),
+                            sd = sd(cont_univ_df[[column]]))) +
+  geom_density(aes(y=..density.., color="Density"),  size = 1)+
+  scale_colour_manual(name="Distribution",values=legendcols) +
+  scale_fill_manual(name="Bar",values=legendcols) +
+  theme_minimal() + theme(legend.position="none")
+
+  p3 <- ggplot(cont_univ_df %>% mutate(constant = column),
+    aes_string(x="constant", y= column, group = 123)) +
+    geom_boxplot() +
+    labs(y=column) +
+    theme_minimal()
+
+  p4 <- ggplot(cont_univ_df,aes_string(sample = column)) +
+    stat_qq() + stat_qq_line() +
+    theme_minimal()
+  grid.arrange(p1, p2, p3, p4, nrow=2)
+
+}
+```
+
+
+### For categorical variables,visually check the frequencies and percentages.
+
+```{r fig.align='center',cache=T,  fig.width=5, warning=FALSE, eval=T}
+
+univ_cat_df <- dataset %>% select(-alcoholicdrinkstakes,-othersubstances)%>%
+                  select_if(function(col) {is.factor(col) | is.character(col)})
+plist= list()
+for(column in colnames(univ_cat_df)){
+gg = ggplot(univ_cat_df,aes_string(column)) +
+    geom_bar() + coord_flip() +
+    ggtitle(column) +
+    theme_minimal()+  theme(axis.title.y = element_blank())
+plist[[column]]=gg
+if(length(plist)==4){
+  print(names(plist))
+  do.call("grid.arrange", c(plist,  nrow=2))
+  plist= list()
+}
+}
+
+for(column in c("ageoffirstdrink_cat"  ,    "alcoholicdrinkstakes_cat", "othersubstances_cat")){
+gg = ggplot(univ_cat_df,aes_string(column)) +
+    geom_bar() + coord_flip() +
+    ggtitle(column) +
+    theme_minimal()+  theme(axis.title.y = element_blank())
+plist[[column]]=gg
+if(length(plist)==3){
+  print(names(plist))
+  do.call("grid.arrange", c(plist,  nrow=3))
+  plist= list()
+}
+}
+
+
+
+```
+
+
+
+
+# Bivariate Analysis
+
+To understand the relationship of each continuous variable with the y variable:
+
+* Association between categorical variables will be assessed using Pearson’s Chi Square test 
+* Association between categorical and continuous variables will be done using two sample t-test, assuming  - assuming Gaussian distribution for continuous variable.
+* Association between categorical and continuous variables  which are not normally distributed  will be conducted using two sample Wilcoxon rank sum test.
+ Kruskal Wallis test (one-way ANOVA on ranks) will be used if the levels of the categorical variable are greater than 2.
+* Correlation coefficients will be tabulated and plotted.
+
+
+ 
+##  Domain
+```{r fig.align='center',warning=FALSE}
+
+
+```
+
+
+
+\newpage
+
+
+
+To understand the relationship of each continuous variable with the y variable:
+
+* Plot box plot for each of the variables to do a visual comparison between the groups
+
+
+
+```{r fig.align='center', cache=T, warning=FALSE}
+angle=10;size = 0.8; jitter = 0.3;
+  value="domain_name";
+   p1<- dataset %>% pivot_longer(
+           cols = starts_with("domain1"),names_to = "domain_label",values_to = "domain_value",values_drop_na = TRUE )%>%
+                  mutate(
+                    domain_name = factor(ifelse(domain_label=="domain1_post", "Post Intervention","Prior Intervention"), 
+                                         levels = c( "Prior Intervention","Post Intervention"))
+                  )%>%
+           ggboxplot(x ="domain_name", y = "domain_value",merge = TRUE,rug = TRUE ,   color = value, palette = "jco", add = "jitter", shape = value,
+                      add.params = list(size = size, jitter = jitter),  repel = TRUE, subtitle = "Domain1 | Physical health ")+
+                stat_compare_means()+theme_minimal() +theme(axis.title = element_blank())
+
+   
+   p2<- dataset %>% pivot_longer(
+           cols = starts_with("domain2"),names_to = "domain_label",values_to = "domain_value",values_drop_na = TRUE )%>%
+                  mutate(
+                    domain_name = factor(ifelse(domain_label=="domain2_post", "Post Intervention","Prior Intervention"), 
+                                         levels = c( "Prior Intervention","Post Intervention"))
+                  )%>%
+           ggboxplot(x ="domain_name", y = "domain_value",merge = TRUE, color = value, palette = "jco", add = "jitter", shape = value,
+                      add.params = list(size = size, jitter = jitter),  repel = TRUE, subtitle = "Domain2 |  Psychological")+
+                stat_compare_means()+ theme_minimal() +theme(axis.title = element_blank())
+   
+   p3<- dataset %>% pivot_longer(
+           cols = starts_with("domain3"),names_to = "domain_label",values_to = "domain_value",values_drop_na = TRUE )%>%
+                  mutate(
+                    domain_name = factor(ifelse(domain_label=="domain3_post", "Post Intervention","Prior Intervention"), 
+                                         levels = c( "Prior Intervention","Post Intervention"))
+                  )%>%
+           ggboxplot(x ="domain_name", y = "domain_value",merge = TRUE, color = value, palette = "jco", add = "jitter", shape = value,
+                      add.params = list(size = size, jitter = jitter),  repel = TRUE, subtitle = "Domain3 |  Social Relationship")+
+                stat_compare_means()+ theme_minimal() +theme(axis.title = element_blank())
+   
+   
+   p4<-  dataset %>% pivot_longer(
+           cols = starts_with("domain4"),names_to = "domain_label",values_to = "domain_value",values_drop_na = TRUE )%>%
+                  mutate(
+                    domain_name = factor(ifelse(domain_label=="domain4_post", "Post Intervention","Prior Intervention"), 
+                                         levels = c( "Prior Intervention","Post Intervention"))
+                  )%>%
+           ggboxplot(x ="domain_name", y = "domain_value",merge = TRUE, color = value, palette = "jco", add = "jitter", shape = value,
+                      add.params = list(size = size, jitter = jitter),  repel = TRUE, subtitle = "Domain4 | Environment")+
+                stat_compare_means()+ theme_minimal() +theme(axis.title = element_blank())
+   
+  legend = gtable_filter(ggplot_gtable(ggplot_build(p1 + theme(legend.position="right")+
+  theme(legend.title=element_blank()))), "guide-box")
+
+  
+ #grid.arrange(legend)
+ grid.arrange( 
+   
+   p1 + theme(legend.position="none"),
+   p2 + theme(legend.position="none"),
+   p3 + theme(legend.position="none"),
+   p4 + theme(legend.position="none")
+               ) 
+ 
+
+
+```
+
+## Box Plots
+
+
+```{r fig.align='center', cache=T, warning=FALSE}
+angle=10;size = 0.8; jitter = 0.3;
+for (value in  colnames(univ_cat_df))  { 
+  print(value)
+
+   p1<- dataset %>% pivot_longer(
+           cols = starts_with("domain1"),names_to = "domain_label",values_to = "domain_value",values_drop_na = TRUE )%>%
+                  mutate(
+                    domain_name = factor(ifelse(domain_label=="domain1_post", "Post Intervention","Prior Intervention"), 
+                                         levels = c( "Prior Intervention","Post Intervention"))
+                  )%>%
+           ggboxplot(x ="domain_name", y = "domain_value",merge = TRUE,rug = TRUE ,   color = value, palette = "jco", add = "jitter", shape = value,
+                      add.params = list(size = size, jitter = jitter),  repel = TRUE, title = "Domain1 | Physical health ")+
+                stat_compare_means()+theme_minimal() +theme(axis.title = element_blank())
+
+   
+   p2<- dataset %>% pivot_longer(
+           cols = starts_with("domain2"),names_to = "domain_label",values_to = "domain_value",values_drop_na = TRUE )%>%
+                  mutate(
+                    domain_name = factor(ifelse(domain_label=="domain2_post", "Post Intervention","Prior Intervention"), 
+                                         levels = c( "Prior Intervention","Post Intervention"))
+                  )%>%
+           ggboxplot(x ="domain_name", y = "domain_value",merge = TRUE, color = value, palette = "jco", add = "jitter", shape = value,
+                      add.params = list(size = size, jitter = jitter),  repel = TRUE, title = "Domain2 |  Psychological")+
+                stat_compare_means()+ theme_minimal() +theme(axis.title = element_blank())
+   
+   p3<- dataset %>% pivot_longer(
+           cols = starts_with("domain3"),names_to = "domain_label",values_to = "domain_value",values_drop_na = TRUE )%>%
+                  mutate(
+                    domain_name = factor(ifelse(domain_label=="domain3_post", "Post Intervention","Prior Intervention"), 
+                                         levels = c( "Prior Intervention","Post Intervention"))
+                  )%>%
+           ggboxplot(x ="domain_name", y = "domain_value",merge = TRUE, color = value, palette = "jco", add = "jitter", shape = value,
+                      add.params = list(size = size, jitter = jitter),  repel = TRUE, title = "Domain3 |  Social Relationship")+
+                stat_compare_means()+ theme_minimal() +theme(axis.title = element_blank())
+   
+   
+   p4<-  dataset %>% pivot_longer(
+           cols = starts_with("domain4"),names_to = "domain_label",values_to = "domain_value",values_drop_na = TRUE )%>%
+                  mutate(
+                    domain_name = factor(ifelse(domain_label=="domain4_post", "Post Intervention","Prior Intervention"), 
+                                         levels = c( "Prior Intervention","Post Intervention"))
+                  )%>%
+           ggboxplot(x ="domain_name", y = "domain_value",merge = TRUE, color = value, palette = "jco", add = "jitter", shape = value,
+                      add.params = list(size = size, jitter = jitter),  repel = TRUE, title = "Domain4 | Environment")+
+                stat_compare_means()+ theme_minimal() +theme(axis.title = element_blank())
+   
+  legend = gtable_filter(ggplot_gtable(ggplot_build(p1 + theme(legend.position="right")+
+  theme(legend.title=element_blank()))), "guide-box")
+
+  
+ #grid.arrange(legend)
+ grid.arrange( 
+   
+   arrangeGrob(           
+   p1 + theme(legend.position="none"),
+               p2 + theme(legend.position="none"),
+               ncol = 1),
+   legend,
+   widths=c(4.3,1.2),ncol=2
+               ) 
+ 
+ grid.arrange( 
+   
+   arrangeGrob(           
+   p3 + theme(legend.position="none"),
+               p4 + theme(legend.position="none"),
+               ncol = 1),
+   legend,
+   widths=c( 4.3,1.2),ncol=2
+               ) 
+ 
+
+  
+}
+
+```
+
+## Density Plots
+
+To understand the relationship of each continuous variable with the y variable:
+
+* Plot the explanatory variable distribution for both the variables to understand the variability uniquely explained (The non-intersecting part of the blue and the red is the variation explained by the variable)
+
+```{r fig.align='center', cache=T, warning=FALSE}
+
+for (value in  colnames(univ_cat_df))  { 
+  print(value)
+  p1 <- ggplot2.density(dataset%>%drop_na(value), xName="domain1_pre", backgroundColor="white",  
+                         #brewerPalette="Paired",
+                         groupName=value, legendPosition="top", xScale="log2",
+                          scale=c( "density"), 
+                         alpha=0.3, fillGroupDensity=TRUE,  removePanelGrid=TRUE ,removePanelBorder=TRUE,
+                         addMeanLine=TRUE, meanLineSize=1)+ theme_minimal()+ theme(legend.position="top")
+  
+  p2 <- ggplot2.density(dataset%>%drop_na(value), xName="domain1_post", backgroundColor="white",  
+                         #brewerPalette="Paired",
+                         groupName=value, legendPosition="top", xScale="log2",
+                          scale=c( "density"), 
+                         alpha=0.3, fillGroupDensity=TRUE,  removePanelGrid=TRUE ,removePanelBorder=TRUE,
+                         addMeanLine=TRUE, meanLineSize=1)+ theme_minimal()+ theme(legend.position="none")
+  
+  
+   p3 <- ggplot2.density(dataset%>%drop_na(value), xName="domain2_pre", backgroundColor="white", 
+                         #brewerPalette="Paired",
+                         groupName=value, legendPosition="top", xScale="log2",
+                          scale=c( "density"), 
+                         alpha=0.3, fillGroupDensity =TRUE,  removePanelGrid=TRUE ,removePanelBorder=TRUE,
+                         addMeanLine=TRUE, meanLineSize=1)+ theme_minimal()+ theme(legend.position="none")
+   
+    p4 <- ggplot2.density(dataset%>%drop_na(value), xName="domain2_post", backgroundColor="white", 
+                         #brewerPalette="Paired",
+                         groupName=value, legendPosition="top", xScale="log2",
+                          scale=c( "density"), 
+                         alpha=0.3, fillGroupDensity =TRUE,  removePanelGrid=TRUE ,removePanelBorder=TRUE,
+                         addMeanLine=TRUE, meanLineSize=1)+ theme_minimal()+ theme(legend.position="none")
+  
+   
+   grid.arrange( p1, p2, p3,p4,nrow=2) 
+   
+   p1 <- ggplot2.density(dataset%>%drop_na(value), xName="domain3_pre", backgroundColor="white", 
+                         #brewerPalette="Paired",
+                         groupName=value, legendPosition="top", xScale="log2",
+                          scale=c( "density"), 
+                         alpha=0.3, fillGroupDensity=TRUE,  removePanelGrid=TRUE ,removePanelBorder=TRUE,
+                         addMeanLine=TRUE, meanLineSize=1)+ theme_minimal()+ theme(legend.position="none")
+   
+   p1 <- ggplot2.density(dataset%>%drop_na(value), xName="domain3_post", backgroundColor="white", 
+                         #brewerPalette="Paired",
+                         groupName=value, legendPosition="top", xScale="log2",
+                          scale=c( "density"), 
+                         alpha=0.3, fillGroupDensity=TRUE,  removePanelGrid=TRUE ,removePanelBorder=TRUE,
+                         addMeanLine=TRUE, meanLineSize=1)+ theme_minimal()+ theme(legend.position="none")
+   
+   p3 <- ggplot2.density(dataset%>%drop_na(value), xName="domain4_pre", backgroundColor="white", 
+                         #brewerPalette="Paired",
+                         groupName=value, legendPosition="top", xScale="log2",
+                          scale=c( "density"), 
+                         alpha=0.3, fillGroupDensity=TRUE,  removePanelGrid=TRUE ,removePanelBorder=TRUE,
+                         addMeanLine=TRUE, meanLineSize=1)+ theme_minimal()+ theme(legend.position="none")
+   
+    p4 <- ggplot2.density(dataset%>%drop_na(value), xName="domain4_post", backgroundColor="white", 
+                         #brewerPalette="Paired",
+                         groupName=value, legendPosition="top", xScale="log2",
+                          scale=c( "density"), 
+                         alpha=0.3, fillGroupDensity=TRUE,  removePanelGrid=TRUE ,removePanelBorder=TRUE,
+                         addMeanLine=TRUE, meanLineSize=1)+ theme_minimal()+ theme(legend.position="none")
+  
+   
+  grid.arrange( p1, p2, p3,p4,nrow=2) 
+  # print(p2 )
+}
+
+```
+
+# Multivariate Analysis
+
+# Appendix
+
+## More on Bivariate Analysis
+
+```{r fig.align='center', results="asis", cache=T, warning=FALSE}
+angle=10;na.rm.var=T;stats=T;outcome="gender";
+for (value in  colnames(univ_cat_df))  { 
+  #print(value)
+  
+   n = length(unique(dataset[[value]]))
+  if(value=="maritalstatus"||value=="religion"||value=="income"){
+    n=n+1
+  }
+ 
+  if(value=="ageoffirstdrink_cat"){
+    n=n-1
+  }
+ print(mergeDesc(
+            
+             "Domain1 | Physical health (prior)" = getTable1Stats("domain1_pre",value,desc_mean,statistics=stats,na.rm=na.rm.var),
+             "Domain1 | Physical health (post)" = getTable1Stats("domain1_post",value,desc_mean,statistics=stats,na.rm=na.rm.var),
+             "Domain2 | Psychological (prior)" = getTable1Stats("domain2_pre",value,desc_mean,statistics=stats,na.rm=na.rm.var),
+             "Domain2 | Psychological (post)" = getTable1Stats("domain2_post",value,desc_mean,statistics=stats,na.rm=na.rm.var),
+             "Domain3 | Social Relationship (prior)" = getTable1Stats("domain3_pre",value,desc_mean,statistics=stats,na.rm=na.rm.var),
+             "Domain3 | Social Relationship (post)" = getTable1Stats("domain3_post",value,desc_mean,statistics=stats,na.rm=na.rm.var),
+             "Domain4 | Environment (prior)" = getTable1Stats("domain4_pre",value,desc_mean,statistics=stats,na.rm=na.rm.var),
+             "Domain4 | Environment (post)" = getTable1Stats("domain4_post",value,desc_mean,statistics=stats,na.rm=na.rm.var)
+             
+             
+           
+            )%>%
+     htmlTable( caption  = paste0("Domain Comparison | ",value),useViewer=T,ctable = TRUE, align = 'lcccc',
+                n.cgroup = c(1,n,1 ), cgroup = c('', value, '') ,tfoot="<sup>&Dagger;</sup>"
+                )%>% htmlTable::addHtmlTableStyle(col.rgroup = c("#FFF", "#EEF")) )
+
+   p1<- ggboxplot(dataset%>%drop_na(value), x =value, y = "domain1_post", color = value, palette = "jco", add = "jitter", shape = value)+
+          stat_compare_means()+ guides(fill=FALSE, color=FALSE)	+ theme_minimal()+ theme(legend.position = "none", axis.text.x = element_text(angle =angle , hjust = 1))
+   
+   p1b<- ggboxplot(dataset%>%drop_na(value), x =value, y = "domain1_pre", color = value, palette = "jco", add = "jitter", shape = value)+
+          stat_compare_means()+ guides(fill=FALSE, color=FALSE)	+ theme_minimal()+ theme(legend.position = "none", axis.text.x = element_text(angle =angle , hjust = 1))
+   
+   
+   
+
+   p2<- ggboxplot(dataset%>%drop_na(value), x = value, y = "domain2_post", color = value, palette = "jco", add = "jitter", shape = value)+
+    stat_compare_means()+ guides(fill=FALSE, color=FALSE)	+ theme_minimal()+ theme(legend.position = "none", axis.text.x = element_text(angle =angle , hjust = 1))
+   
+   
+   p2b<- ggboxplot(dataset%>%drop_na(value), x =value, y = "domain2_pre", color = value, palette = "jco", add = "jitter", shape = value)+
+          stat_compare_means()+ guides(fill=FALSE, color=FALSE)	+ theme_minimal()+ theme(legend.position = "none", axis.text.x = element_text(angle =angle , hjust = 1))
+   grid.arrange( p1b,p1,p2b,p2, nrow=2) 
+   
+  
+   p1<- ggboxplot(dataset%>%drop_na(value), x =value, y = "domain3_post", color = value, palette = "jco", add = "jitter", shape = value)+
+          stat_compare_means()+ guides(fill=FALSE, color=FALSE)	+ theme_minimal()+ theme(legend.position = "none", axis.text.x = element_text(angle =angle , hjust = 1))
+   
+  p1b<- ggboxplot(dataset%>%drop_na(value), x =value, y = "domain3_pre", color = value, palette = "jco", add = "jitter", shape = value)+
+          stat_compare_means()+ guides(fill=FALSE, color=FALSE)	+ theme_minimal()+ theme(legend.position = "none", axis.text.x = element_text(angle =angle , hjust = 1))
+  
+   p2<- ggboxplot(dataset%>%drop_na(value), x = value, y = "domain4_post", color = value, palette = "jco", add = "jitter", shape = value)+
+    stat_compare_means()+ guides(fill=FALSE, color=FALSE)	+ theme_minimal()+ theme(legend.position = "none", axis.text.x = element_text(angle =angle , hjust = 1))
+   
+   p2b<- ggboxplot(dataset%>%drop_na(value), x = value, y = "domain4_pre", color = value, palette = "jco", add = "jitter", shape = value)+
+    stat_compare_means()+ guides(fill=FALSE, color=FALSE)	+ theme_minimal()+ theme(legend.position = "none", axis.text.x = element_text(angle =angle , hjust = 1))
+   grid.arrange( p1b,p1,p2b,p2, nrow=2) 
+  # print(p2 )
+   
+  
+
+}
+
+```
+
+
+

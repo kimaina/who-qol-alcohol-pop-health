@@ -53,7 +53,7 @@ ipak <- function(pkg){
 
 #install.packages('package_name', dependencies=TRUE, repos='http://cran.rstudio.com/')
 
-packages =c( "dplyr",  "readxl","Hmisc","Gmisc", "magrittr", "flextable", "MASS", "tidyverse", "caret", "knitr", "kableExtra","xtable", "stargazer", "ggpubr", "haven", "tidycomm", "gtable")
+packages =c( "dplyr",  "readxl","Hmisc","Gmisc", "magrittr", "flextable", "MASS", "tidyverse", "caret", "knitr", "kableExtra","xtable", "stargazer", "ggpubr", "haven", "tidycomm", "gtable", "ggpmisc")
 
 ipak(packages)
 
@@ -143,7 +143,7 @@ desc_median <- function(x, ...) {
  
  MainX<<-NULL
 # Creating a wrapper for getting descriptive statistics
-getTable1Stats <- function(x, y, cont_fx=desc_both, data=dataset, digits = 1,statistics = T,na.rm=na.rm.var){
+getTable1Stats <- function(x, y, cont_fx=desc_both, data=dataset, digits = 1,statistics = T,na.rm=na.rm.var, header_count = T){
    MainX <<- append(MainX, c(x))
   data=data%>%drop_na(all_of(y))
   if(na.rm){
@@ -156,7 +156,7 @@ getTable1Stats <- function(x, y, cont_fx=desc_both, data=dataset, digits = 1,sta
                         continuous_fn = cont_fx,
                         hrzl_prop = T,
                         total_col_show_perc = T,
-                        header_count = TRUE)
+                        header_count =  header_count )
   
 }
 
@@ -388,6 +388,10 @@ dataset%>%
 ```
 
 
+
+
+
+
 ## Univariate Plots
 
 For each continuous column, visually check the following: 
@@ -481,6 +485,131 @@ if(length(plist)==3){
 
 
 
+
+# Alcohol Drinking Patterns
+
+This assesses the benefits of community-based alcohol support groups on alcohol drinking patterns  of the patients in terms of number of drinking days and the number of drinks per drinking day 
+
+
+## Drinking Days Per Month
+
+
+
+```{r fig.align='center', align = 'center', warning=FALSE}
+drinking_patterns <- readxl::read_excel("Group Evaluation-drinking patterns.xlsx")
+
+
+# define ggplot alpha level
+drinking_patterns <- drinking_patterns %>%
+    mutate(prob = runif(n()))%>%
+   mutate(alpha = ifelse(prob > quantile(prob,1/10)[[1]],0.1,.8))
+
+# gen ling
+drinking_patterns.long=drinking_patterns %>% 
+  pivot_longer(
+           cols = starts_with("Drinking Days"),names_to = "month",values_to = "drinking_days",values_drop_na = TRUE) %>%
+            mutate(
+              month=as.numeric(str_replace(month,"Drinking Days Month ","")),
+              ID=as.character(ID)
+            )
+
+
+subset <- sample_n(drinking_patterns, 20)$ID
+drinking_patterns.few = drinking_patterns.long[drinking_patterns.long$ID %in% subset,]
+ggplot(drinking_patterns.few, aes(x = month, y = drinking_days)) + 
+   geom_point()+
+    geom_line(aes(group = ID))+
+   facet_wrap(~factor(ID)) + theme_minimal()
+
+
+drinking_patterns.long%>%ggplot(aes(x = month, y = drinking_days)) +
+  geom_jitter(aes(group = ID),color=drinking_patterns.long$ID)+
+    guides(colour=FALSE) +
+    labs(y = "Monthly Drinking Days", x="Month")+
+     guides(fill=FALSE)+
+     aes(alpha=alpha) +
+    geom_smooth(se=T, colour="black", method = "lm", linetype=6)+
+  	theme_minimal()+   theme(legend.position="none")+
+     ggpmisc::stat_fit_glance(method = 'lm', method.args = list(formula = y ~ x),
+                  geom='text', aes(label=ifelse(..p.value..< 0.001, "p<0.001**", 
+                                                ifelse(..p.value..>=0.001 & ..p.value..<0.05, "p<0.05*", "p>0.05"))))
+
+
+
+
+  
+
+```
+
+
+
+The dotted line is the cohort level regression and as expected it has a negative slope - indicating an overall reduction in drinking days per month
+
+
+## Average Drinks per day Per Month
+
+
+
+```{r fig.align='center', align = 'center', warning=FALSE}
+
+
+# gen ling
+drinking_patterns.long=drinking_patterns %>% 
+  pivot_longer(
+           cols = starts_with("Drinks per day"),names_to = "month",values_to = "drinks_per_days",values_drop_na = TRUE) %>%
+            mutate(
+              month=as.numeric(str_replace(month,"Drinks per day Month ","")),
+              ID=as.character(ID)
+            )
+
+
+subset <- sample_n(drinking_patterns, 20)$ID
+drinking_patterns.few = drinking_patterns.long[drinking_patterns.long$ID %in% subset,]
+ggplot(drinking_patterns.few, aes(x = month, y = drinks_per_days)) + 
+   geom_point()+
+    geom_line(aes(group = ID))+
+   labs(y = "Average Drinks per day Per Month", x="Month")+
+   facet_wrap(~factor(ID)) + theme_minimal()
+
+
+drinking_patterns.long%>% ggplot(aes(x = month, y = drinks_per_days)) +
+  geom_jitter(aes(group = ID),color=drinking_patterns.long$ID)+
+    guides(colour=FALSE) +
+    labs(y = "Average Drinks per day Per Month", x="Month")+
+     guides(fill=FALSE)+
+     aes(alpha=alpha) +
+    geom_smooth(se=T, colour="black", method = "lm", linetype=6)+
+  	theme_minimal()+   theme(legend.position="none")+
+     ggpmisc::stat_fit_glance(method = 'lm', method.args = list(formula = y ~ x),
+                  geom='text', aes(label=ifelse(..p.value..< 0.001, "p<0.001**", 
+                                                ifelse(..p.value..>=0.001 & ..p.value..<0.05, "p<0.05*", "p>0.05"))))
+
+
+print("Without Outliers")
+drinking_patterns.long.no = drinking_patterns.long%>% filter(drinks_per_days < 10)
+drinking_patterns.long.no%>%ggplot(aes(x = month, y = drinks_per_days)) +
+  geom_jitter(aes(group = ID),color=drinking_patterns.long.no$ID)+
+    guides(colour=FALSE) +
+    labs(y = "Average Drinks per day Per Month", x="Month")+
+     guides(fill=FALSE)+
+     aes(alpha=alpha) +
+    geom_smooth(se=T, colour="black", method = "lm", linetype=6)+
+  	theme_minimal()+   theme(legend.position="none")+
+     ggpmisc::stat_fit_glance(method = 'lm', method.args = list(formula = y ~ x),
+                  geom='text', aes(label=ifelse(..p.value..< 0.001, "p<0.001**", 
+                                                ifelse(..p.value..>=0.001 & ..p.value..<0.05, "p<0.05*", "p>0.05"))))
+  
+
+```
+
+
+
+The dotted line is the cohort level regression and as expected it has a negative slope - indicating an overall reduction in average number of dayly drinks per month. The reduction is not as substancial as the above (Drinking Days Per Month)
+
+## Tabulation
+
+TODO
+
 # Bivariate Analysis
 
 To understand the relationship of each continuous variable with the y variable:
@@ -493,12 +622,48 @@ To understand the relationship of each continuous variable with the y variable:
 
 
  
-##  Domain
-```{r fig.align='center',warning=FALSE}
+##  QOL before and after support group (SG)
 
+This establishes the benefits of community-based alcohol support groups on the perceived quality of life of patients with alcohol and drug abuse disorders.
 
+```{r fig.align='center', align = 'center', warning=FALSE}
+
+domain1<- dataset %>% pivot_longer(
+           cols = starts_with("domain1_p"),names_to = "domain_label",values_to = "domain_value",values_drop_na = TRUE)%>%
+                  mutate(
+                    domain_name = factor(ifelse(domain_label=="domain1_post", "Post SG","Prior SG"), 
+                                         levels = c( "Prior SG","Post SG"))
+                  )
+domain2<- dataset %>% pivot_longer(
+           cols = starts_with("domain2_p"),names_to = "domain_label",values_to = "domain_value",values_drop_na = TRUE)%>%
+                  mutate(
+                    domain_name = factor(ifelse(domain_label=="domain2_post", "Post SG","Prior SG"), 
+                                         levels = c( "Prior SG","Post SG"))
+                  )
+domain3<- dataset %>% pivot_longer(
+           cols = starts_with("domain3_p"),names_to = "domain_label",values_to = "domain_value",values_drop_na = TRUE)%>%
+                  mutate(
+                    domain_name = factor(ifelse(domain_label=="domain3_post", "Post SG","Prior SG"), 
+                                         levels = c( "Prior SG","Post SG"))
+                  )
+domain4<- dataset %>% pivot_longer(
+           cols = starts_with("domain4_p"),names_to = "domain_label",values_to = "domain_value",values_drop_na = TRUE)%>%
+                  mutate(
+                    domain_name = factor(ifelse(domain_label=="domain4_post", "Post SG","Prior SG"), 
+                                         levels = c( "Prior SG","Post SG"))
+                  )
+na.rm.var=F;stats=T;outcome="domain_name";
+# Getting descriptive statistics 
+mergeDesc("Domain1 | Physical health" = getTable1Stats("domain_value","domain_name",desc_both,data=domain1,statistics=stats,na.rm=na.rm.var, header_count = F ),
+          "Domain2 | Psychological" = getTable1Stats("domain_value","domain_name",desc_both,data=domain2,statistics=stats,na.rm=na.rm.var, header_count = F ),
+          "Domain3 | Social Relationship" = getTable1Stats("domain_value","domain_name",desc_both,data=domain3,statistics=stats,na.rm=na.rm.var, header_count = F ),
+          "Domain4 | Environment" = getTable1Stats("domain_value","domain_name",desc_both,data=domain4,statistics=stats,na.rm=na.rm.var, header_count = F )
+         
+          ) %>%
+   htmlTable( caption  = "<b> QOL before and after support group (SG) </b>",useViewer=T,ctable = TRUE, align = 'lcccc',
+              n.cgroup = c(1,2,1 ), cgroup = c('', 'Quality of Life', '') ,tfoot="<sup>&Dagger; TODO: Please delete total column </sup>"
+              )%>% htmlTable::addHtmlTableStyle(col.rgroup = c("#FFF", "#EEF")) 
 ```
-
 
 
 \newpage
@@ -515,7 +680,7 @@ To understand the relationship of each continuous variable with the y variable:
 angle=10;size = 0.8; jitter = 0.3;
   value="domain_name";
    p1<- dataset %>% pivot_longer(
-           cols = starts_with("domain1"),names_to = "domain_label",values_to = "domain_value",values_drop_na = TRUE )%>%
+           cols = starts_with("domain1_p"),names_to = "domain_label",values_to = "domain_value",values_drop_na = TRUE )%>%
                   mutate(
                     domain_name = factor(ifelse(domain_label=="domain1_post", "Post Intervention","Prior Intervention"), 
                                          levels = c( "Prior Intervention","Post Intervention"))
@@ -526,7 +691,7 @@ angle=10;size = 0.8; jitter = 0.3;
 
    
    p2<- dataset %>% pivot_longer(
-           cols = starts_with("domain2"),names_to = "domain_label",values_to = "domain_value",values_drop_na = TRUE )%>%
+           cols = starts_with("domain2_p"),names_to = "domain_label",values_to = "domain_value",values_drop_na = TRUE )%>%
                   mutate(
                     domain_name = factor(ifelse(domain_label=="domain2_post", "Post Intervention","Prior Intervention"), 
                                          levels = c( "Prior Intervention","Post Intervention"))
@@ -536,7 +701,7 @@ angle=10;size = 0.8; jitter = 0.3;
                 stat_compare_means()+ theme_minimal() +theme(axis.title = element_blank())
    
    p3<- dataset %>% pivot_longer(
-           cols = starts_with("domain3"),names_to = "domain_label",values_to = "domain_value",values_drop_na = TRUE )%>%
+           cols = starts_with("domain3_p"),names_to = "domain_label",values_to = "domain_value",values_drop_na = TRUE )%>%
                   mutate(
                     domain_name = factor(ifelse(domain_label=="domain3_post", "Post Intervention","Prior Intervention"), 
                                          levels = c( "Prior Intervention","Post Intervention"))
@@ -547,7 +712,7 @@ angle=10;size = 0.8; jitter = 0.3;
    
    
    p4<-  dataset %>% pivot_longer(
-           cols = starts_with("domain4"),names_to = "domain_label",values_to = "domain_value",values_drop_na = TRUE )%>%
+           cols = starts_with("domain4_p"),names_to = "domain_label",values_to = "domain_value",values_drop_na = TRUE )%>%
                   mutate(
                     domain_name = factor(ifelse(domain_label=="domain4_post", "Post Intervention","Prior Intervention"), 
                                          levels = c( "Prior Intervention","Post Intervention"))
@@ -654,88 +819,18 @@ for (value in  colnames(univ_cat_df))  {
 
 ```
 
-## Density Plots
-
-To understand the relationship of each continuous variable with the y variable:
-
-* Plot the explanatory variable distribution for both the variables to understand the variability uniquely explained (The non-intersecting part of the blue and the red is the variation explained by the variable)
-
-```{r fig.align='center', cache=T, warning=FALSE}
-
-for (value in  colnames(univ_cat_df))  { 
-  print(value)
-  p1 <- ggplot2.density(dataset%>%drop_na(value), xName="domain1_pre", backgroundColor="white",  
-                         #brewerPalette="Paired",
-                         groupName=value, legendPosition="top", xScale="log2",
-                          scale=c( "density"), 
-                         alpha=0.3, fillGroupDensity=TRUE,  removePanelGrid=TRUE ,removePanelBorder=TRUE,
-                         addMeanLine=TRUE, meanLineSize=1)+ theme_minimal()+ theme(legend.position="top")
-  
-  p2 <- ggplot2.density(dataset%>%drop_na(value), xName="domain1_post", backgroundColor="white",  
-                         #brewerPalette="Paired",
-                         groupName=value, legendPosition="top", xScale="log2",
-                          scale=c( "density"), 
-                         alpha=0.3, fillGroupDensity=TRUE,  removePanelGrid=TRUE ,removePanelBorder=TRUE,
-                         addMeanLine=TRUE, meanLineSize=1)+ theme_minimal()+ theme(legend.position="none")
-  
-  
-   p3 <- ggplot2.density(dataset%>%drop_na(value), xName="domain2_pre", backgroundColor="white", 
-                         #brewerPalette="Paired",
-                         groupName=value, legendPosition="top", xScale="log2",
-                          scale=c( "density"), 
-                         alpha=0.3, fillGroupDensity =TRUE,  removePanelGrid=TRUE ,removePanelBorder=TRUE,
-                         addMeanLine=TRUE, meanLineSize=1)+ theme_minimal()+ theme(legend.position="none")
-   
-    p4 <- ggplot2.density(dataset%>%drop_na(value), xName="domain2_post", backgroundColor="white", 
-                         #brewerPalette="Paired",
-                         groupName=value, legendPosition="top", xScale="log2",
-                          scale=c( "density"), 
-                         alpha=0.3, fillGroupDensity =TRUE,  removePanelGrid=TRUE ,removePanelBorder=TRUE,
-                         addMeanLine=TRUE, meanLineSize=1)+ theme_minimal()+ theme(legend.position="none")
-  
-   
-   grid.arrange( p1, p2, p3,p4,nrow=2) 
-   
-   p1 <- ggplot2.density(dataset%>%drop_na(value), xName="domain3_pre", backgroundColor="white", 
-                         #brewerPalette="Paired",
-                         groupName=value, legendPosition="top", xScale="log2",
-                          scale=c( "density"), 
-                         alpha=0.3, fillGroupDensity=TRUE,  removePanelGrid=TRUE ,removePanelBorder=TRUE,
-                         addMeanLine=TRUE, meanLineSize=1)+ theme_minimal()+ theme(legend.position="none")
-   
-   p1 <- ggplot2.density(dataset%>%drop_na(value), xName="domain3_post", backgroundColor="white", 
-                         #brewerPalette="Paired",
-                         groupName=value, legendPosition="top", xScale="log2",
-                          scale=c( "density"), 
-                         alpha=0.3, fillGroupDensity=TRUE,  removePanelGrid=TRUE ,removePanelBorder=TRUE,
-                         addMeanLine=TRUE, meanLineSize=1)+ theme_minimal()+ theme(legend.position="none")
-   
-   p3 <- ggplot2.density(dataset%>%drop_na(value), xName="domain4_pre", backgroundColor="white", 
-                         #brewerPalette="Paired",
-                         groupName=value, legendPosition="top", xScale="log2",
-                          scale=c( "density"), 
-                         alpha=0.3, fillGroupDensity=TRUE,  removePanelGrid=TRUE ,removePanelBorder=TRUE,
-                         addMeanLine=TRUE, meanLineSize=1)+ theme_minimal()+ theme(legend.position="none")
-   
-    p4 <- ggplot2.density(dataset%>%drop_na(value), xName="domain4_post", backgroundColor="white", 
-                         #brewerPalette="Paired",
-                         groupName=value, legendPosition="top", xScale="log2",
-                          scale=c( "density"), 
-                         alpha=0.3, fillGroupDensity=TRUE,  removePanelGrid=TRUE ,removePanelBorder=TRUE,
-                         addMeanLine=TRUE, meanLineSize=1)+ theme_minimal()+ theme(legend.position="none")
-  
-   
-  grid.arrange( p1, p2, p3,p4,nrow=2) 
-  # print(p2 )
-}
-
-```
 
 # Multivariate Analysis
 
 # Appendix
 
-## More on Bivariate Analysis
+
+## Bivariate Analysis | Density Plots
+
+To understand the relationship of each continuous variable with the y variable:
+
+* Plot the explanatory variable distribution for both the variables to understand the variability uniquely explained (The non-intersecting part of the blue and the red is the variation explained by the variable)
+
 
 ```{r fig.align='center', results="asis", cache=T, warning=FALSE}
 angle=10;na.rm.var=T;stats=T;outcome="gender";
@@ -799,12 +894,77 @@ for (value in  colnames(univ_cat_df))  {
     stat_compare_means()+ guides(fill=FALSE, color=FALSE)	+ theme_minimal()+ theme(legend.position = "none", axis.text.x = element_text(angle =angle , hjust = 1))
    grid.arrange( p1b,p1,p2b,p2, nrow=2) 
   # print(p2 )
+   p1 <- ggplot2.density(dataset%>%drop_na(value), xName="domain1_pre", backgroundColor="white",  
+                         #brewerPalette="Paired",
+                         groupName=value, legendPosition="top", xScale="log2",
+                          scale=c( "density"), 
+                         alpha=0.3, fillGroupDensity=TRUE,  removePanelGrid=TRUE ,removePanelBorder=TRUE,
+                         addMeanLine=TRUE, meanLineSize=1)+ theme_minimal()+ theme(legend.position="top")
+  
+  p2 <- ggplot2.density(dataset%>%drop_na(value), xName="domain1_post", backgroundColor="white",  
+                         #brewerPalette="Paired",
+                         groupName=value, legendPosition="top", xScale="log2",
+                          scale=c( "density"), 
+                         alpha=0.3, fillGroupDensity=TRUE,  removePanelGrid=TRUE ,removePanelBorder=TRUE,
+                         addMeanLine=TRUE, meanLineSize=1)+ theme_minimal()+ theme(legend.position="none")
+  
+  
+   p3 <- ggplot2.density(dataset%>%drop_na(value), xName="domain2_pre", backgroundColor="white", 
+                         #brewerPalette="Paired",
+                         groupName=value, legendPosition="top", xScale="log2",
+                          scale=c( "density"), 
+                         alpha=0.3, fillGroupDensity =TRUE,  removePanelGrid=TRUE ,removePanelBorder=TRUE,
+                         addMeanLine=TRUE, meanLineSize=1)+ theme_minimal()+ theme(legend.position="none")
    
+    p4 <- ggplot2.density(dataset%>%drop_na(value), xName="domain2_post", backgroundColor="white", 
+                         #brewerPalette="Paired",
+                         groupName=value, legendPosition="top", xScale="log2",
+                          scale=c( "density"), 
+                         alpha=0.3, fillGroupDensity =TRUE,  removePanelGrid=TRUE ,removePanelBorder=TRUE,
+                         addMeanLine=TRUE, meanLineSize=1)+ theme_minimal()+ theme(legend.position="none")
+  
+   
+   grid.arrange( p1, p2, p3,p4,nrow=2) 
+   
+   p1 <- ggplot2.density(dataset%>%drop_na(value), xName="domain3_pre", backgroundColor="white", 
+                         #brewerPalette="Paired",
+                         groupName=value, legendPosition="top", xScale="log2",
+                          scale=c( "density"), 
+                         alpha=0.3, fillGroupDensity=TRUE,  removePanelGrid=TRUE ,removePanelBorder=TRUE,
+                         addMeanLine=TRUE, meanLineSize=1)+ theme_minimal()+ theme(legend.position="none")
+   
+   p1 <- ggplot2.density(dataset%>%drop_na(value), xName="domain3_post", backgroundColor="white", 
+                         #brewerPalette="Paired",
+                         groupName=value, legendPosition="top", xScale="log2",
+                          scale=c( "density"), 
+                         alpha=0.3, fillGroupDensity=TRUE,  removePanelGrid=TRUE ,removePanelBorder=TRUE,
+                         addMeanLine=TRUE, meanLineSize=1)+ theme_minimal()+ theme(legend.position="none")
+   
+   p3 <- ggplot2.density(dataset%>%drop_na(value), xName="domain4_pre", backgroundColor="white", 
+                         #brewerPalette="Paired",
+                         groupName=value, legendPosition="top", xScale="log2",
+                          scale=c( "density"), 
+                         alpha=0.3, fillGroupDensity=TRUE,  removePanelGrid=TRUE ,removePanelBorder=TRUE,
+                         addMeanLine=TRUE, meanLineSize=1)+ theme_minimal()+ theme(legend.position="none")
+   
+    p4 <- ggplot2.density(dataset%>%drop_na(value), xName="domain4_post", backgroundColor="white", 
+                         #brewerPalette="Paired",
+                         groupName=value, legendPosition="top", xScale="log2",
+                          scale=c( "density"), 
+                         alpha=0.3, fillGroupDensity=TRUE,  removePanelGrid=TRUE ,removePanelBorder=TRUE,
+                         addMeanLine=TRUE, meanLineSize=1)+ theme_minimal()+ theme(legend.position="none")
+  
+   
+  grid.arrange( p1, p2, p3,p4,nrow=2) 
   
 
 }
 
 ```
+
+
+
+
 
 
 

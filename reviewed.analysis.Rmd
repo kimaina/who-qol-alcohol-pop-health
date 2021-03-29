@@ -470,6 +470,30 @@ drinking_patterns.long%>%ggplot(aes(x = month, y = drinking_days)) +
 
 The dotted line is the cohort level regression and as expected it has a negative slope - indicating an overall reduction in drinking days per month
 
+### Pre-Post support group (SG) Analysis
+
+```{r  align = 'center', warning=FALSE}
+na.rm.var=F;stats=T;
+
+month2=drinking_patterns.long%>%filter(month%in%c(1,2))%>%mutate(month=as.factor(month))
+month3=drinking_patterns.long%>%filter(month%in%c(1,3))%>%mutate(month=as.factor(month))
+month4=drinking_patterns.long%>%filter(month%in%c(1,4))%>%mutate(month=as.factor(month))
+month5=drinking_patterns.long%>%filter(month%in%c(1,5))%>%mutate(month=as.factor(month))
+month6=drinking_patterns.long%>%filter(month%in%c(1,6))%>%mutate(month=as.factor(month))
+
+# Getting descriptive statistics 
+mergeDesc("Baseline vs Month 2" = getTable1Stats("drinking_days","month",desc_both,data=month2,statistics=stats,na.rm=na.rm.var, header_count = T ),
+          "Baseline vs Month 3" = getTable1Stats("drinking_days","month",desc_both,data=month3,statistics=stats,na.rm=na.rm.var, header_count = F ),
+          "Baseline vs Month 4" = getTable1Stats("drinking_days","month",desc_both,data=month4,statistics=stats,na.rm=na.rm.var, header_count = F ),
+          "Baseline vs Month 5" = getTable1Stats("drinking_days","month",desc_both,data=month5,statistics=stats,na.rm=na.rm.var, header_count = F ),
+          "Baseline vs Month 6" = getTable1Stats("drinking_days","month",desc_both,data=month6,statistics=stats,na.rm=na.rm.var, header_count = F )
+         
+          ) %>%
+   htmlTable( caption  = "<b> Drinking Days Per Month Pre-Post support group (SG) </b>",useViewer=T,ctable = TRUE, align = 'lcccc',
+              n.cgroup = c(1,2,1 ), cgroup = c('', 'Drinking Days Per Month', '') ,tfoot="<sup>&Dagger; TODO: Please delete total column </sup>"
+              )%>% htmlTable::addHtmlTableStyle(col.rgroup = c("#FFF", "#EEF")) 
+
+```
 
 ## Average Drinks per day Per Month
 
@@ -526,6 +550,33 @@ drinking_patterns.long.no%>%ggplot(aes(x = month, y = drinks_per_day)) +
 
 
 The dotted line is the group (cohort) level regression and as expected it has a negative slope - indicating an overall reduction in average number of dayly drinks per month. The reduction is not as substancial as the above (Drinking Days Per Month)
+
+
+
+### Pre-Post support group (SG) Analysis
+
+```{r  align = 'center', warning=FALSE}
+na.rm.var=F;stats=T;
+
+month2=drinking_patterns.long2%>%filter(month%in%c(1,2))%>%mutate(month=as.factor(month))
+month3=drinking_patterns.long2%>%filter(month%in%c(1,3))%>%mutate(month=as.factor(month))
+month4=drinking_patterns.long2%>%filter(month%in%c(1,4))%>%mutate(month=as.factor(month))
+month5=drinking_patterns.long2%>%filter(month%in%c(1,5))%>%mutate(month=as.factor(month))
+month6=drinking_patterns.long2%>%filter(month%in%c(1,6))%>%mutate(month=as.factor(month))
+
+# Getting descriptive statistics 
+mergeDesc("Baseline vs Month 2" = getTable1Stats("drinks_per_day","month",desc_both,data=month2,statistics=stats,na.rm=na.rm.var, header_count = T ),
+          "Baseline vs Month 3" = getTable1Stats("drinks_per_day","month",desc_both,data=month3,statistics=stats,na.rm=na.rm.var, header_count = F ),
+          "Baseline vs Month 4" = getTable1Stats("drinks_per_day","month",desc_both,data=month4,statistics=stats,na.rm=na.rm.var, header_count = F ),
+          "Baseline vs Month 5" = getTable1Stats("drinks_per_day","month",desc_both,data=month5,statistics=stats,na.rm=na.rm.var, header_count = F ),
+          "Baseline vs Month 6" = getTable1Stats("drinks_per_day","month",desc_both,data=month6,statistics=stats,na.rm=na.rm.var, header_count = F )
+         
+          ) %>%
+   htmlTable( caption  = "<b> Number of Drinks per day Pre-Post support group (SG) </b>",useViewer=T,ctable = TRUE, align = 'lcccc',
+              n.cgroup = c(1,2,1 ), cgroup = c('', 'Number of Drinks per day', '') ,tfoot="<sup>&Dagger; TODO: Please delete total column </sup>"
+              )%>% htmlTable::addHtmlTableStyle(col.rgroup = c("#FFF", "#EEF")) 
+
+```
 
 ## Multilevel analysis
 
@@ -780,6 +831,10 @@ for (value in  colnames(univ_cat_df))  {
 }
 
 ```
+
+
+
+
 
 
 

@@ -53,7 +53,7 @@ ipak <- function(pkg){
 
 #install.packages('package_name', dependencies=TRUE, repos='http://cran.rstudio.com/')
 
-packages =c( "dplyr",  "readxl","Hmisc","Gmisc", "magrittr", "flextable", "MASS", "tidyverse", "caret", "knitr", "kableExtra","xtable", "stargazer", "ggpubr", "haven", "tidycomm", "gtable", "ggpmisc",  "gtsummary", "emmeans", "ggstatsplot", "jtools", "lme4", "texreg", "car", "afex", "lmerTest")
+packages =c( "dplyr",  "readxl","Hmisc","Gmisc", "magrittr", "flextable", "MASS", "tidyverse", "caret", "knitr", "kableExtra","xtable", "stargazer", "ggpubr", "haven", "tidycomm", "gtable", "ggpmisc",  "gtsummary", "emmeans", "ggstatsplot", "jtools", "lme4", "texreg", "car", "afex", "lmerTest", "hrbrthemes")
 
 ipak(packages)
 
@@ -447,24 +447,68 @@ In general, there is a reduction in the number of drinking days per month for ea
 
 ```{r  align = 'center', warning=FALSE}
 
-drinking_patterns.long%>%ggplot(aes(x = month, y = drinking_days)) +
-  geom_jitter(aes(group = ID),color=drinking_patterns.long$ID)+
+drinking_patterns.long.summary=drinking_patterns.long%>%
+  group_by(month)%>%
+  summarise(mean=mean(drinking_days), sd= sd(drinking_days),
+            se= sd(drinking_days)/sqrt(length(drinking_days)))%>%
+  mutate(month=as.character(month))
+
+
+a = drinking_patterns.long.summary%>%ggplot(aes(month, mean)) +
+  geom_line(aes(group = 1)) +
+  labs(y = "Average Drinking Days Per Month", x="Month")+
+  geom_errorbar( aes(ymin = mean-sd, ymax = mean+sd), width = 0.2) +
+  geom_point( size = 2) +
+  theme_minimal()
+
+a
+
+
+b=  drinking_patterns.long.summary%>%ggplot(aes(month, mean)) +
+  geom_line(aes(group = 1)) +
+  labs(y = "Average Drinking Days Per Month", x="Month")+
+  #geom_errorbar( aes(ymin = mean-se, ymax = mean+se), width = 0.2) +
+  geom_point( size = 2) +
+  theme_minimal()
+
+b
+
+
+c= drinking_patterns.long.summary%>%ggplot(aes(month, mean,  fill="blue")) +
+  geom_bar(stat="identity", position=position_dodge()) +
+  labs(y = " Average Drinking Days Per Month", x="Month")+
+    guides(fill=FALSE)+
+  scale_fill_brewer(palette="Blues") +
+  geom_errorbar( aes(ymin = mean-sd, ymax = mean+sd), width = 0.2,  position=position_dodge(.9)) +
+  geom_point( size = 2) +
+  theme_classic()
+
+c
+
+d= drinking_patterns.long%>%mutate(drinking_days=drinking_days-3.2)%>%
+  ggplot(aes(x = month, y = drinking_days)) +
+  #geom_jitter(aes(group = ID),color=drinking_patterns.long$ID)+
     guides(colour=FALSE) +
-    labs(y = "Monthly Drinking Days", x="Month")+
+    labs(y = "Drinking Days Per Month", x="Month")+
      guides(fill=FALSE)+
      aes(alpha=alpha) +
-    geom_smooth(se=T, colour="black", method = "lm", linetype=6)+
-  	theme_minimal()+   theme(legend.position="none")+
-     ggpmisc::stat_fit_glance(method = 'lm', method.args = list(formula = y ~ x),
-                  geom='text', aes(label=ifelse(..p.value..< 0.001, "p<0.001**", 
-                                                ifelse(..p.value..>=0.001 & ..p.value..<0.05, "p<0.05*", "p>0.05"))))
+    geom_smooth(se=T, colour="black", method = "lm")+
+  	theme_minimal()+   theme(legend.position="none")
+     # ggpmisc::stat_fit_glance(method = 'lm', method.args = list(formula = y ~ x),
+     #              geom='text', aes(label=ifelse(..p.value..< 0.001, "p<0.001**", 
+     #                                            ifelse(..p.value..>=0.001 & ..p.value..<0.05, "p<0.05*", "p>0.05"))))
+
+d
 
 
+#ggarrange(a,b,c,d, nrow=2, ncol=2, labels=c("a","b","c", "d"))
 
-
-  
 
 ```
+
+
+
+
 
 
 
@@ -532,18 +576,34 @@ For a few participants, there is a visible reduction in the number of  drinks pe
 ```{r  align = 'center', warning=FALSE}
 
 drinking_patterns.long.no = drinking_patterns.long2%>% filter(drinks_per_day < 10)
+
+drinking_patterns.long2.summary=drinking_patterns.long.no%>%
+  group_by(month)%>%
+  summarise(mean=mean(drinks_per_day), sd= sd(drinks_per_day),
+            se= sd(drinks_per_day)/sqrt(length(drinks_per_day)))%>%
+  mutate(month=as.character(month))
+
+
 drinking_patterns.long.no%>%ggplot(aes(x = month, y = drinks_per_day)) +
-  geom_jitter(aes(group = ID),color=drinking_patterns.long.no$ID)+
+ # geom_jitter(aes(group = ID),color=drinking_patterns.long.no$ID)+
     guides(colour=FALSE) +
     labs(y = "Average Drinks per day Per Month", x="Month")+
      guides(fill=FALSE)+
      aes(alpha=alpha) +
     geom_smooth(se=T, colour="black", method = "lm", linetype=6)+
-  	theme_minimal()+   theme(legend.position="none")+
-     ggpmisc::stat_fit_glance(method = 'lm', method.args = list(formula = y ~ x),
-                  geom='text', aes(label=ifelse(..p.value..< 0.001, "p<0.001**", 
-                                                ifelse(..p.value..>=0.001 & ..p.value..<0.05, "p<0.05*", "p>0.05"))))
-  
+  	theme_minimal()+   theme(legend.position="none")
+     # ggpmisc::stat_fit_glance(method = 'lm', method.args = list(formula = y ~ x),
+     #              geom='text', aes(label=ifelse(..p.value..< 0.001, "p<0.001**", 
+     #                                            ifelse(..p.value..>=0.001 & ..p.value..<0.05, "p<0.05*", "p>0.05"))))
+ 
+ b=  drinking_patterns.long2.summary%>%ggplot(aes(month, mean)) +
+  geom_line(aes(group = 1)) +
+  labs(y = "Average Drinks per day Per Month", x="Month")+
+ # geom_errorbar( aes(ymin = mean-se, ymax = mean+se), width = 0.2) +
+  geom_point( size = 2) +
+  theme_minimal()
+
+b 
 
 ```
 
@@ -577,6 +637,59 @@ mergeDesc("Baseline vs Month 2" = getTable1Stats("drinks_per_day","month",desc_b
               )%>% htmlTable::addHtmlTableStyle(col.rgroup = c("#FFF", "#EEF")) 
 
 ```
+
+## Multivariate analysis
+
+### Drinking Days Per Month
+
+Please note that in our analysis we remove these participants : 116,12,35,83
+
+
+
+```{r results="asis", align = 'center', warning=FALSE}
+dataset$ID=as.numeric(dataset$NO)
+# Data Prep
+drinking_patterns.wide.df= drinking_patterns%>%select(ID,Baseline=`Drinking Days Month 1`, Endline=`Drinking Days Month 6`)%>% 
+  mutate(Effect=Endline-Baseline) %>% 
+   left_join(dataset%>%select(
+     ID,gender,maritalstatus,religion,education,work,
+                     income,currentfamily,supportsystem,familyalcoholhistory,introductiontodrinking,
+                     everreceivedcare,age_cat,ageoffirstdrink_cat,alcoholicdrinkstakes_cat,othersubstances_cat
+   ), by = c("ID"))
+
+min.glm= glm(Effect ~  gender + maritalstatus +  education + income + currentfamily + familyalcoholhistory +  alcoholicdrinkstakes_cat, data =drinking_patterns.wide.df)
+#summary(min.glm)
+
+summ(min.glm, confint = TRUE, pvals=T)
+
+```
+
+
+### Average Drinks per day Per Month
+
+Please note that in our analysis we remove these participants : 116,12,35,83
+
+
+
+```{r results="asis", align = 'center', warning=FALSE}
+dataset$ID=as.numeric(dataset$NO)
+# Data Prep
+drinking_patterns.wide.df= drinking_patterns%>%select(ID,Baseline=`Drinks per day Month 1`, Endline=`Drinks per day Month 6`)%>% 
+  mutate(Effect=Endline-Baseline) %>% 
+   left_join(dataset%>%select(
+     ID,gender,maritalstatus,religion,education,work,
+                     income,currentfamily,supportsystem,familyalcoholhistory,introductiontodrinking,
+                     everreceivedcare,age_cat,ageoffirstdrink_cat,alcoholicdrinkstakes_cat,othersubstances_cat
+   ), by = c("ID"))
+
+min.glm= glm(Effect ~  gender + maritalstatus +  education + income + currentfamily + familyalcoholhistory +  alcoholicdrinkstakes_cat, data =drinking_patterns.wide.df)
+#summary(min.glm)
+
+summ(min.glm, confint = TRUE, pvals=T)
+
+```
+
+
 
 ## Multilevel analysis
 
@@ -734,9 +847,9 @@ angle=10;size = 0.8; jitter = 0.3;
                     domain_name = factor(ifelse(domain_label=="domain1_post", "Post Intervention","Prior Intervention"), 
                                          levels = c( "Prior Intervention","Post Intervention"))
                   )%>%
-           ggboxplot(x ="domain_name", y = "domain_value",merge = TRUE,rug = TRUE ,   color = value, palette = "jco", add = "jitter", shape = value,
+           ggboxplot(x ="domain_name", y = "domain_value",merge = TRUE,rug = TRUE ,   color = value, palette = "jco", shape = value,
                       add.params = list(size = size, jitter = jitter),  repel = TRUE, subtitle = "Domain1 | Physical health ")+
-                stat_compare_means()+theme_minimal() +theme(axis.title = element_blank())
+                theme_minimal() +theme(axis.title = element_blank())
 
    
    p2<- dataset %>% pivot_longer(
@@ -745,9 +858,9 @@ angle=10;size = 0.8; jitter = 0.3;
                     domain_name = factor(ifelse(domain_label=="domain2_post", "Post Intervention","Prior Intervention"), 
                                          levels = c( "Prior Intervention","Post Intervention"))
                   )%>%
-           ggboxplot(x ="domain_name", y = "domain_value",merge = TRUE, color = value, palette = "jco", add = "jitter", shape = value,
+           ggboxplot(x ="domain_name", y = "domain_value",merge = TRUE, color = value, palette = "jco",  shape = value,
                       add.params = list(size = size, jitter = jitter),  repel = TRUE, subtitle = "Domain2 |  Psychological")+
-                stat_compare_means()+ theme_minimal() +theme(axis.title = element_blank())
+                 theme_minimal() +theme(axis.title = element_blank())
    
    p3<- dataset %>% pivot_longer(
            cols = starts_with("domain3_p"),names_to = "domain_label",values_to = "domain_value",values_drop_na = TRUE )%>%
@@ -755,9 +868,9 @@ angle=10;size = 0.8; jitter = 0.3;
                     domain_name = factor(ifelse(domain_label=="domain3_post", "Post Intervention","Prior Intervention"), 
                                          levels = c( "Prior Intervention","Post Intervention"))
                   )%>%
-           ggboxplot(x ="domain_name", y = "domain_value",merge = TRUE, color = value, palette = "jco", add = "jitter", shape = value,
+           ggboxplot(x ="domain_name", y = "domain_value",merge = TRUE, color = value, palette = "jco", shape = value,
                       add.params = list(size = size, jitter = jitter),  repel = TRUE, subtitle = "Domain3 |  Social Relationship")+
-                stat_compare_means()+ theme_minimal() +theme(axis.title = element_blank())
+               theme_minimal() +theme(axis.title = element_blank())
    
    
    p4<-  dataset %>% pivot_longer(
@@ -766,9 +879,9 @@ angle=10;size = 0.8; jitter = 0.3;
                     domain_name = factor(ifelse(domain_label=="domain4_post", "Post Intervention","Prior Intervention"), 
                                          levels = c( "Prior Intervention","Post Intervention"))
                   )%>%
-           ggboxplot(x ="domain_name", y = "domain_value",merge = TRUE, color = value, palette = "jco", add = "jitter", shape = value,
+           ggboxplot(x ="domain_name", y = "domain_value",merge = TRUE, color = value, palette = "jco", shape = value,
                       add.params = list(size = size, jitter = jitter),  repel = TRUE, subtitle = "Domain4 | Environment")+
-                stat_compare_means()+ theme_minimal() +theme(axis.title = element_blank())
+                theme_minimal() +theme(axis.title = element_blank())
    
   legend = gtable_filter(ggplot_gtable(ggplot_build(p1 + theme(legend.position="right")+
   theme(legend.title=element_blank()))), "guide-box")
@@ -831,10 +944,6 @@ for (value in  colnames(univ_cat_df))  {
 }
 
 ```
-
-
-
-
 
 
 

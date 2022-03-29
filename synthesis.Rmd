@@ -1,0 +1,858 @@
+---
+title: EVALUATING THE BENEFITS, BARRIERS AND FACILITATORS OF GROUP INTERVENTIONS AMONG
+  PERSONS BATTLING ALCOHOL AND DRUG ABUSE IN TURBO SUB-COUNTY, UASIN GISHU COUNTY
+author: "Allan Kimaina and Julius Barasa"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    df_print: paged
+  pdf_document: default
+subtitle: Population Health
+always_allow_html: yes
+---
+
+
+
+```{r setup, include=FALSE}
+options(java.parameters = "-Xmx15g")
+
+knitr::opts_chunk$set(warning=FALSE,
+                      message=FALSE,
+                      echo=FALSE,
+                      #dpi=96,
+                     # fig.width=7,# fig.height=4, # Default figure widths
+                     # dev="png", #dev.args=list(type="cairo"), # The png device
+                      # Change to dev="postscript" if you want the EPS-files
+                      # for submitting. Also remove the dev.args() as the postscript
+                      # doesn't accept the type="cairo" argument.
+                      error=FALSE)
+ 
+# Evaluate the figure caption after the plot
+#knitr::opts_knit$set(eval.after='fig.cap')
+ 
+# Use the table counter that the htmlTable() provides
+options(table_counter = TRUE)
+ 
+# Use the figCapNo() with roman letters
+#options(fig_caption_no_roman = TRUE)
+#options(kableExtra.latex.load_packages = F)
+
+# Then install the Grmd-package by running below code:
+#devtools::install_github("gforge/Grmd")
+
+#devtools::install_github("kassambara/easyGgplot2")
+library(easyGgplot2)
+
+# function to install missing packages
+ipak <- function(pkg){
+  new.pkg <- pkg[!(pkg %in% installed.packages()[, "Package"])]
+  if (length(new.pkg))
+    install.packages(new.pkg, dependencies = TRUE, repos='http://cran.rstudio.com/')
+  sapply(pkg, require, character.only = TRUE)
+}
+
+#install.packages('package_name', dependencies=TRUE, repos='http://cran.rstudio.com/')
+
+packages =c( "dplyr",  "readxl","Hmisc","Gmisc", "magrittr", "flextable", "MASS", "tidyverse", "caret", "knitr", "kableExtra","xtable", "stargazer", "ggpubr", "haven", "tidycomm", "gtable", "ggpmisc",  "gtsummary", "emmeans", "ggstatsplot", "jtools", "lme4", "texreg", "car", "afex", "lmerTest", "hrbrthemes")
+
+ipak(packages)
+
+
+select = dplyr::select; summarize = dplyr::summarize; rename = dplyr::rename; mutate = dplyr::mutate;
+
+source("unbalanced_functions.R")
+
+```
+
+
+
+```{r warning=FALSE}
+
+describeMissing= function (x, html = TRUE, number_first = TRUE, percentage_sign = TRUE, 
+    language = "en", useNA.digits = 1, ...) {
+    
+    if (!any(is.na(x))) 
+        return(invisible())
+    df_arg_list <- list(x = is.na(x), html = html, number_first = number_first, 
+        percentage_sign = percentage_sign, language = language, 
+        digits = useNA.digits)
+    dot_args <- list(...)
+    for (n in names(dot_args)) {
+        if (!n %in% names(df_arg_list)) {
+            df_arg_list[[n]] <- dot_args[[n]]
+        }
+    }
+    missing <- fastDoCall(describeFactors, df_arg_list)
+   rownames(missing)<-c("FALSE","Missing")
+    return(missing["Missing", ])
+}
+
+desc_both <- function(x, ...) {
+    result <- c(
+      describeMean(x, useNA="no"),
+      describeMedian(x, useNA="no"),
+      describeMissing(x)
+    )
+    return(result)
+}
+
+desc_mean <- function(x, ...) {
+    result <- c(
+      describeMean(x, useNA="no"),
+      describeMissing(x)
+    )
+    return(result)
+ }
+ 
+
+desc_median <- function(x, ...) {
+    result <- c(
+      describeMedian(x, useNA="no"),
+      describeMissing(x)
+    )
+    return(result)
+ }
+
+ 
+ MainX<<-NULL
+# Creating a wrapper for getting descriptive statistics
+getTable1Stats <- function(x, y, cont_fx=desc_both, data=dataset, digits = 1,statistics = T,na.rm=na.rm.var, header_count = T){
+   MainX <<- append(MainX, c(x))
+  data=data%>%drop_na(all_of(y))
+  if(na.rm){
+    data=data%>%drop_na(all_of(x))
+  } 
+  getDescriptionStatsBy(x = data[[x]], 
+                        by = data[[y]],
+                        digits = digits,
+                        statistics = statistics,
+                        continuous_fn = cont_fx,
+                        hrzl_prop = T,
+                        total_col_show_perc = T,
+                        header_count =  header_count )
+  
+}
+
+relevelBy <- function(varList, data){
+  for (factorName in names(varList)) {
+    for(var in varList[[factorName]]){
+     # print(var)
+      data[[var]] =relevel(factor(data[[var]]),factorName)
+    }
+  }
+  return(data)
+}
+
+
+getMultipleTable1Stats <- function(x, y,y2,y3, cont_fx=desc_both, data=dataset, digits = 1,statistics = T,hrzl_prop = T,na.rm=na.rm.var){
+ # data=data%>%drop_na(all_of(y))
+  if(na.rm){
+    data=data%>%drop_na(all_of(x))
+  } 
+ yy1= getDescriptionStatsBy(x = data[[x]], 
+                        by = data[[y]],
+                        digits = digits,
+                        statistics = statistics,
+                        continuous_fn = cont_fx,
+                        hrzl_prop = hrzl_prop,
+                        total_col_show_perc = T,
+                        header_count = TRUE)
+ 
+ yy2= getDescriptionStatsBy(x = data[[x]], 
+                        by = data[[y2]],
+                        digits = digits,
+                        statistics = statistics,
+                        continuous_fn = cont_fx,
+                        hrzl_prop = hrzl_prop,
+                        total_col_show_perc = T,
+                        header_count = TRUE)
+ 
+ yy3= getDescriptionStatsBy(x = data[[x]], 
+                        by = data[[y3]],
+                        digits = digits,
+                        statistics = statistics,
+                        continuous_fn = cont_fx,
+                        hrzl_prop = hrzl_prop,
+                        total_col_show_perc = T,
+                        header_count = TRUE)
+  
+  
+  result <- tryCatch({
+    return(cbind(yy1,yy2,yy3))
+    
+    }, warning = function(war) {
+    
+      # warning handler picks up where error was generated
+      print(paste(x,"ERROR"))
+      print(paste("MY_WARNING:  ",war))
+     
+    
+    }, error = function(err) {
+    
+      # error handler picks up where error was generated
+      print(paste(x,"ERROR"))
+      print(paste("MY_ERROR:  ",err))
+      #return(f)
+    
+    }, finally = {
+    
+     # print(paste(x,"Done"))
+
+    }) # END tryCatch
+  
+}
+
+stargazer2 <- function(model, odd.ratio = F, ...) {
+  if(!("list" %in% class(model))) model <- list(model)
+    
+  if (odd.ratio) {
+    #exponentiate <- function(x) exp(x)
+    coefOR2 <- lapply(model, function(x) exp(coef(x)))
+    CIOR2 <- lapply(model, function(x) exp(confint(x)))
+    seOR2 <- lapply(model, function(x) exp(coef(x)) * summary(x)$coef[, 2])
+    p2 <- lapply(model, function(x) summary(x)$coefficients[, 4])
+    stargazer(model, coef = coefOR2, se = seOR2, p = p2,  ci.custom =CIOR2, ...)
+    
+  } else {
+    stargazer(model, ...)
+  }
+}
+
+generateInterpretation= function(outcome,topn,model.df){
+  
+  model.df%>%mutate(
+  interpretation=ifelse( term!="(Intercept)",paste("Fixing all else constant, a unit increase in ",tolower(variable_name),", changes the odds of ",outcome," by: ", estimate_or, " (",conf.low_or, "-",conf.high_or,") on average. In other words, the odds of ",outcome," changes by", 100 * (estimate_or - 1), "% due to each unit increase in ",tolower(variable_name)),paste("Not meaningful but can be roughly translated to the odds of ",outcome," which is ",estimate_or, " (",conf.low_or, "-",conf.high_or,") ,fixing all else constant")),
+  
+  interpretation=ifelse(categorical==T,paste("The odds of ",outcome," in ", tolower(variable_name), " is ", estimate_or, " (",conf.low_or, "-",conf.high_or,") times higher than the odds of ", outcome," in the reference group, fixing all else constant." ),interpretation )
+)%>%select(variable_name,interpretation )%>%
+  kable( "html", booktabs = T, longtable = F,  digits=2,
+         caption = paste("Model Interpretation | ",capitalize(outcome)) ) %>%
+  kable_styling(bootstrap_options = c("striped","hold_position","condensed","responsive"))
+  
+
+}
+
+generateLogitPlot= function(outcome,topn,model.df){
+  ggplot(model.df%>%top_n(topn,p.value), aes(estimate, variable_name, color = variable_name )) +
+      geom_point() + geom_errorbarh(aes(xmin = conf.low, xmax = conf.high)) + geom_vline(xintercept = 1, color = "blue", lty = 2) +
+      ggtitle( sprintf( paste("Precision Comparison | ",capitalize(outcome)) ) )+  xlab("Log Odds Ratio") + ylab("Covariate")+
+      theme_economist()+ guides(fill=FALSE, color=FALSE)+theme(plot.title = element_text(size=14, face="bold"))
+}
+
+```
+
+
+
+```{r warning=F}
+
+drinking_patterns <- readxl::read_excel("Group Evaluation-drinking patterns.xlsx")%>%
+  filter(ID%in%c(116,12,35,83)==F)%>%
+  mutate(
+    TFBCCompletionStatus = as.factor(if_else(is.na(`Drinks per day Month 6`), "Incomplete", "Complete" ))
+  )%>%
+
+  select(ID,`Drinks per day Month 1`,`Drinking Days Month 1`,TFBCCompletionStatus)
+
+
+dataset = foreign::read.spss("TURB0 GROUP DATA ENTRY 8th Oct.sav", to.data.frame=TRUE)%>%
+  mutate(
+    age_cat=ifelse(age<44,"<44",NA),
+    age_cat=ifelse( age>=44,"≥44",age_cat),
+     age_cat= factor(age_cat),
+    
+     ageoffirstdrink_cat=ifelse(ageoffirstdrink<21,"<21",NA),
+     ageoffirstdrink_cat=ifelse( ageoffirstdrink>=21,"≥21",ageoffirstdrink_cat),
+    ageoffirstdrink_cat= factor(ageoffirstdrink_cat),
+    
+    
+    alcoholicdrinkstakes_cat = case_when(
+                                   
+                                    str_detect(alcoholicdrinkstakes,"^busaa") ~ "busaa +",
+                                    str_detect(alcoholicdrinkstakes,"^chang") ~ "chang’aa +",
+                                    is.na(alcoholicdrinkstakes) ~ NA_character_,
+                                    TRUE ~ "others"),
+    
+     maritalstatus = case_when(
+                                   
+                                    str_detect(maritalstatus,"^married") ~ "married",
+                                    is.na(maritalstatus) ~ NA_character_,
+                                    TRUE ~ "single"),
+     maritalstatus= factor(maritalstatus),
+    
+     religion= factor(ifelse(religion=="christian", "christian", "non-christian")),
+     education= factor(ifelse(education=="secondary"|education=="college/university", "secondary / tertiary", as.character(education))),
+     work= factor(ifelse(work=='formal employment'|work=="self employed", "formal / self employed", "unemployed / short term")),
+     income=ifelse(income=='Refused',NA, as.character(income)),
+     income= factor(ifelse(income!="1,000 and below", 'above 1000', as.character(income))),
+     supportsystem = factor(ifelse(supportsystem=="spouse"|supportsystem=="family", "family / spouse", "friends / others")),
+     currentfamily = factor(ifelse(currentfamily=="spouse"|currentfamily=="parents"|currentfamily=="siblings", "family", as.character(currentfamily))),
+     introductiontodrinking =  factor(ifelse(introductiontodrinking=='parent'|introductiontodrinking=="spouse"|introductiontodrinking=="sibling", 
+                                            "family / spouse", as.character(introductiontodrinking))),
+    
+     everreceivedcare = factor(ifelse(everreceivedcare=='hospital'|everreceivedcare=="rehabilitation centre",
+                                            "hospital / rehabilitation centre", as.character(everreceivedcare))),
+     everreceivedcare = factor(ifelse(everreceivedcare=='traditional healer',
+                                            "church", as.character(everreceivedcare))),
+    
+    
+    othersubstances_cat = case_when(
+                                   
+                                    str_detect(othersubstances,"^cig") ~ "cigaratte +",
+                                    str_detect(othersubstances,"^sig") ~ "cigaratte +",
+                                    str_detect(othersubstances,"none") ~ "none",
+                                    is.na(othersubstances) ~ NA_character_,
+                                    TRUE ~ "others"),
+  )%>%mutate(
+                                   male=ifelse(gender=="male", 1,0),
+                                   married=ifelse(maritalstatus=="married", 1,0),
+                                   christian=ifelse(religion=="christian", 1,0),
+                                   educated=ifelse(education=="none", 0,1),
+                                   unemployed=ifelse(work=="unemployed", 1,0),
+                                   domain1_post=VAR00002, 
+                                   domain1_pre=VAR00004, 
+                                   domain2_post=VAR00006,
+                                   domain2_pre=VAR00008, 
+                                   domain3_post=VAR00010, 
+                                   domain3_pre=VAR00012, 
+                                   domain4_post=VAR00014, 
+                                   domain4_pre=VAR00016
+                                ) %>%mutate(
+   `hazardous_drinking1` = if_else(audit1 >= 8, 'Yes (AUDIT >= 8)', 'No (AUDIT < 8)'),
+  `hazardous_drinking2` = if_else(audit2 >= 8, 'Yes (AUDIT >= 8)', 'No (AUDIT < 8)'),
+    hazardous_drinking1 =  if_else(is.na(audit1), NA_character_, hazardous_drinking1),
+    hazardous_drinking2 =  if_else(is.na(audit2), NA_character_, hazardous_drinking2),
+  
+  `alcohol_dependence1` = if_else(audit1 >= 13 & gender=="female", 'Yes (AUDIT >= 15 for male & >= 13 for female)', 'No (AUDIT < 15 for male & < 13 for female)'),
+  `alcohol_dependence1` = if_else(audit1 >= 15 & gender=="male", 'Yes (AUDIT >= 15 for male & >= 13 for female)', 'No (AUDIT < 15 for male & < 13 for female)'),
+  alcohol_dependence1 =  if_else(is.na(audit1), NA_character_, alcohol_dependence1),
+  
+  `alcohol_dependence2` = if_else(audit2 >= 13 & gender=="female", 'Yes (AUDIT >= 15 for male & >= 13 for female)', 'No (AUDIT < 15 for male & < 13 for female)'),
+  `alcohol_dependence2` = if_else(audit2 >= 15 & gender=="male", 'Yes (AUDIT >= 15 for male & >= 13 for female)', 'No (AUDIT < 15 for male & < 13 for female)'),
+  alcohol_dependence2 =  if_else(is.na(audit2), NA_character_, alcohol_dependence2),
+  
+    alcohol_dependence2 = as.factor(alcohol_dependence2),
+   alcohol_dependence1 = as.factor(alcohol_dependence1),
+    hazardous_drinking1 = as.factor(hazardous_drinking1),
+   hazardous_drinking2 = as.factor(hazardous_drinking2),
+   ID=as.numeric(NO)
+  
+)  %>%  left_join(drinking_patterns, by = c("ID"))  %>%
+  mutate(
+    TFBCCompletionStatus = as.factor(if_else(is.na(`TFBCCompletionStatus`), "Complete", as.character(TFBCCompletionStatus)))
+  )
+
+
+```
+
+
+
+## Table 1: Demographics and socio-economic characteristics
+```{r warning=FALSE}
+na.rm.var=F;stats=F;outcome="gender";
+
+# Getting descriptive statistics 
+mergeDesc("Age (Years)" = getTable1Stats("age",outcome,desc_both,statistics=stats,na.rm=na.rm.var),
+          "Age (%)" = getTable1Stats("age_cat",outcome,desc_both,statistics=stats,na.rm=na.rm.var),
+         # "Gender" = getTable1Stats("gender",outcome,desc_both,statistics=stats,na.rm=na.rm.var),
+          "Marital status" =getTable1Stats("maritalstatus",outcome,desc_both,statistics=stats,na.rm=na.rm.var),  
+          "Religion" =getTable1Stats("religion",outcome,desc_both,statistics=stats,na.rm=na.rm.var),
+          
+          "Highest level of education" = getTable1Stats("education",outcome,desc_both,statistics=stats,na.rm=na.rm.var),
+          "Employment Status" = getTable1Stats("work",outcome,desc_both,statistics=stats,na.rm=na.rm.var),
+           "Estimated monthly income" = getTable1Stats("income",outcome,desc_both,statistics=stats,na.rm=na.rm.var),
+           "Currently living with" = getTable1Stats("currentfamily",outcome,desc_both,statistics=stats,na.rm=na.rm.var),
+           "Primary support system" = getTable1Stats("supportsystem",outcome,desc_both,statistics=stats,na.rm=na.rm.var),
+         
+           "History of alcohol in the family" = getTable1Stats("familyalcoholhistory",outcome,desc_both,statistics=stats,na.rm=na.rm.var),
+           #"Age of first alcoholic drink (Years)" = getTable1Stats("ageoffirstdrink",outcome,desc_both,statistics=stats,na.rm=na.rm.var),
+           "Age of first alcoholic drink (%)" = getTable1Stats("ageoffirstdrink_cat",outcome,desc_both,statistics=stats,na.rm=na.rm.var),
+           "First introduced to drinking by" = getTable1Stats("introductiontodrinking",outcome,desc_both,statistics=stats,na.rm=na.rm.var),
+           "Types of alcoholic drinks taken" = getTable1Stats("alcoholicdrinkstakes_cat",outcome,desc_both,statistics=stats,na.rm=na.rm.var),
+           #"Types of alcoholic drinks taken" = getTable1Stats("alcoholicdrinkstakes",outcome,desc_both,statistics=stats,na.rm=na.rm.var),
+           #"Other substances used" = getTable1Stats("othersubstances",outcome,desc_both,statistics=stats,na.rm=na.rm.var),
+           "Other substances used" = getTable1Stats("othersubstances_cat",outcome,desc_both,statistics=stats,na.rm=na.rm.var),
+          "Ever recieved care for substance related problems" = getTable1Stats("everreceivedcare",outcome,desc_median,statistics=stats,na.rm=na.rm.var),
+          "Baseline AUDIT Score" = getTable1Stats("audit1",outcome,desc_both,statistics=stats,na.rm=na.rm.var),
+          "Alcohol Dependence" = getTable1Stats("alcohol_dependence1",outcome,desc_both,statistics=stats,na.rm=na.rm.var),
+         "Harmful or hazardous drinking" = getTable1Stats("hazardous_drinking1",outcome,desc_both,statistics=stats,na.rm=na.rm.var),
+         "Baseline drinks per day per month" = getTable1Stats("Drinks per day Month 1",outcome,desc_both,statistics=stats,na.rm=na.rm.var),
+         "Baseline drinking days per Month" = getTable1Stats("Drinking Days Month 1",outcome,desc_both,statistics=stats,na.rm=na.rm.var)
+         
+          )%>%
+   htmlTable( caption  = "<b> Demographics and socio-economic characteristics </b>",useViewer=T,ctable = TRUE, align = 'lcccc',
+              n.cgroup = c(1,2,0 ), cgroup = c('', 'Gender', '') ,tfoot="<sup>&Dagger;</sup>"
+              )%>% htmlTable::addHtmlTableStyle(col.rgroup = c("#FFF", "#EEF")) 
+
+
+
+
+```
+
+
+
+
+
+
+## Table 4: Comparison of the Distribution of Study Participants with Complete TFBC Vs Those with Incomplete TFBC
+
+```{r warning=FALSE}
+na.rm.var=F;stats=T;outcome="TFBCCompletionStatus";
+
+# Getting descriptive statistics 
+mergeDesc("Age (Years)" = getTable1Stats("age",outcome,desc_both,statistics=stats,na.rm=na.rm.var),
+          "Age (%)" = getTable1Stats("age_cat",outcome,desc_both,statistics=stats,na.rm=na.rm.var),
+          "Gender" = getTable1Stats("gender",outcome,desc_both,statistics=stats,na.rm=na.rm.var),
+          "Marital status" =getTable1Stats("maritalstatus",outcome,desc_both,statistics=stats,na.rm=na.rm.var),  
+          "Religion" =getTable1Stats("religion",outcome,desc_both,statistics=stats,na.rm=na.rm.var),
+          
+          "Highest level of education" = getTable1Stats("education",outcome,desc_both,statistics=stats,na.rm=na.rm.var),
+          "Employment Status" = getTable1Stats("work",outcome,desc_both,statistics=stats,na.rm=na.rm.var),
+           "Estimated monthly income" = getTable1Stats("income",outcome,desc_both,statistics=stats,na.rm=na.rm.var),
+           "Currently living with" = getTable1Stats("currentfamily",outcome,desc_both,statistics=stats,na.rm=na.rm.var),
+           "Primary support system" = getTable1Stats("supportsystem",outcome,desc_both,statistics=stats,na.rm=na.rm.var),
+         
+           "History of alcohol in the family" = getTable1Stats("familyalcoholhistory",outcome,desc_both,statistics=stats,na.rm=na.rm.var),
+           #"Age of first alcoholic drink (Years)" = getTable1Stats("ageoffirstdrink",outcome,desc_both,statistics=stats,na.rm=na.rm.var),
+           "Age of first alcoholic drink (%)" = getTable1Stats("ageoffirstdrink_cat",outcome,desc_both,statistics=stats,na.rm=na.rm.var),
+           "First introduced to drinking by" = getTable1Stats("introductiontodrinking",outcome,desc_both,statistics=stats,na.rm=na.rm.var),
+           "Types of alcoholic drinks taken" = getTable1Stats("alcoholicdrinkstakes_cat",outcome,desc_both,statistics=stats,na.rm=na.rm.var),
+           #"Types of alcoholic drinks taken" = getTable1Stats("alcoholicdrinkstakes",outcome,desc_both,statistics=stats,na.rm=na.rm.var),
+           #"Other substances used" = getTable1Stats("othersubstances",outcome,desc_both,statistics=stats,na.rm=na.rm.var),
+           "Other substances used" = getTable1Stats("othersubstances_cat",outcome,desc_both,statistics=stats,na.rm=na.rm.var),
+          "Ever recieved care for substance related problems" = getTable1Stats("everreceivedcare",outcome,desc_median,statistics=stats,na.rm=na.rm.var),
+          "Baseline AUDIT Score" = getTable1Stats("audit1",outcome,desc_both,statistics=stats,na.rm=na.rm.var),
+          "Alcohol Dependence" = getTable1Stats("alcohol_dependence1",outcome,desc_both,statistics=stats,na.rm=na.rm.var),
+         "Harmful or hazardous drinking" = getTable1Stats("hazardous_drinking1",outcome,desc_both,statistics=stats,na.rm=na.rm.var),
+         "Baseline drinks per day per month" = getTable1Stats("Drinks per day Month 1",outcome,desc_both,statistics=stats,na.rm=na.rm.var),
+         "Baseline drinking days per Month" = getTable1Stats("Drinking Days Month 1",outcome,desc_both,statistics=stats,na.rm=na.rm.var)
+         
+          )%>%
+   htmlTable( caption  = "<b> Comparison of the Distribution of Study Participants with Complete TFBC Vs Those with Incomplete TFBC </b>",useViewer=T,ctable = TRUE, align = 'lcccc',
+              n.cgroup = c(1,2,1 ), cgroup = c('', 'TFBC Completion Status', '') ,tfoot="<sup>&Dagger;</sup>"
+              )%>% htmlTable::addHtmlTableStyle(col.rgroup = c("#FFF", "#EEF")) 
+
+
+
+
+```
+
+
+
+
+
+
+## Multivariate analysis
+
+
+
+
+```{r  align = 'center', warning=FALSE}
+
+drinking_patterns <- readxl::read_excel("Group Evaluation-drinking patterns.xlsx")%>%filter(ID%in%c(116,12,35,83)==F)
+
+# define ggplot alpha level
+drinking_patterns <- drinking_patterns %>%
+    mutate(prob = runif(n()))%>%
+   mutate(alpha = ifelse(prob > quantile(prob,1/10)[[1]],0.1,.8))
+
+# gen ling
+drinking_patterns.long=drinking_patterns %>% 
+  pivot_longer(
+           cols = starts_with("Drinking Days"),names_to = "month",values_to = "drinking_days",values_drop_na = TRUE) %>%
+            mutate(
+              month=as.numeric(str_replace(month,"Drinking Days Month ","")),
+              ID=as.character(ID)
+            )
+
+
+
+```
+
+
+
+
+### Drinking Days Per Month
+
+Please note that in our analysis we remove these participants : 116,12,35,83
+
+
+
+```{r results="asis", align = 'center', warning=FALSE}
+dataset$ID=as.numeric(dataset$NO)
+# Data Prep
+drinking_patterns.wide.df= drinking_patterns%>%select(ID,Baseline=`Drinking Days Month 1`, Endline=`Drinking Days Month 6`)%>% 
+  mutate(Effect=Endline-Baseline) %>% 
+   left_join(dataset%>%select(
+     ID,gender,maritalstatus,religion,education,work,
+                     income,currentfamily,supportsystem,familyalcoholhistory,introductiontodrinking,
+                     everreceivedcare,age_cat,ageoffirstdrink_cat,alcoholicdrinkstakes_cat,othersubstances_cat,audit1
+   ), by = c("ID"))
+
+min.glm= glm(Effect ~  gender + maritalstatus +  education + income + currentfamily + familyalcoholhistory +  alcoholicdrinkstakes_cat + audit1, data =drinking_patterns.wide.df)
+#summary(min.glm)
+
+summ(min.glm, confint = TRUE, pvals=T)
+
+```
+
+
+### Average Drinks per day Per Month
+
+Please note that in our analysis we remove these participants : 116,12,35,83
+
+
+
+```{r results="asis", align = 'center', warning=FALSE}
+dataset$ID=as.numeric(dataset$NO)
+# Data Prep
+drinking_patterns.wide.df= drinking_patterns%>%select(ID,Baseline=`Drinks per day Month 1`, Endline=`Drinks per day Month 6`)%>% 
+  mutate(Effect=Endline-Baseline) %>% 
+   left_join(dataset%>%select(
+     ID,gender,maritalstatus,religion,education,work,
+                     income,currentfamily,supportsystem,familyalcoholhistory,introductiontodrinking,
+                     everreceivedcare,age_cat,ageoffirstdrink_cat,alcoholicdrinkstakes_cat,othersubstances_cat,audit1
+   ), by = c("ID"))
+
+min.glm= glm(Effect ~  gender + maritalstatus  + education + income + currentfamily + familyalcoholhistory +  alcoholicdrinkstakes_cat + audit1, data =drinking_patterns.wide.df)
+#summary(min.glm)
+
+summ(min.glm, confint = TRUE, pvals=T)
+
+```
+
+
+
+
+
+# QOL Bivariate Analysis
+
+
+
+
+ 
+##  QOL after support group (SG)
+
+This establishes the benefits of community-based alcohol support groups on the perceived quality of life of patients with alcohol and drug abuse disorders.
+
+```{r  align = 'center', warning=FALSE}
+
+domain1<- dataset %>% pivot_longer(
+           cols = starts_with("domain1_p"),names_to = "domain_label",values_to = "domain_value",values_drop_na = TRUE)%>%
+                  mutate(
+                    domain_name = factor(ifelse(domain_label=="domain1_post", "Post SG","Prior SG"), 
+                                         levels = c( "Prior SG","Post SG"))
+                  )
+domain2<- dataset %>% pivot_longer(
+           cols = starts_with("domain2_p"),names_to = "domain_label",values_to = "domain_value",values_drop_na = TRUE)%>%
+                  mutate(
+                    domain_name = factor(ifelse(domain_label=="domain2_post", "Post SG","Prior SG"), 
+                                         levels = c( "Prior SG","Post SG"))
+                  )
+domain3<- dataset %>% pivot_longer(
+           cols = starts_with("domain3_p"),names_to = "domain_label",values_to = "domain_value",values_drop_na = TRUE)%>%
+                  mutate(
+                    domain_name = factor(ifelse(domain_label=="domain3_post", "Post SG","Prior SG"), 
+                                         levels = c( "Prior SG","Post SG"))
+                  )
+domain4<- dataset %>% pivot_longer(
+           cols = starts_with("domain4_p"),names_to = "domain_label",values_to = "domain_value",values_drop_na = TRUE)%>%
+                  mutate(
+                    domain_name = factor(ifelse(domain_label=="domain4_post", "Post SG","Prior SG"), 
+                                         levels = c( "Prior SG","Post SG"))
+                  )
+na.rm.var=F;stats=T;outcome="domain_name";
+# Getting descriptive statistics 
+mergeDesc("Domain1 | Physical health" = getTable1Stats("domain_value","domain_name",desc_both,data=domain1,statistics=stats,na.rm=na.rm.var, header_count = F ),
+          "Domain2 | Psychological" = getTable1Stats("domain_value","domain_name",desc_both,data=domain2,statistics=stats,na.rm=na.rm.var, header_count = F ),
+          "Domain3 | Social Relationship" = getTable1Stats("domain_value","domain_name",desc_both,data=domain3,statistics=stats,na.rm=na.rm.var, header_count = F ),
+          "Domain4 | Environment" = getTable1Stats("domain_value","domain_name",desc_both,data=domain4,statistics=stats,na.rm=na.rm.var, header_count = F )
+         
+          ) %>%
+   htmlTable( caption  = "<b> QOL before and after support group (SG) </b>",useViewer=T,ctable = TRUE, align = 'lcccc',
+              n.cgroup = c(1,2,1 ), cgroup = c('', 'Quality of Life', '') ,tfoot="<sup>&Dagger; TODO: Please delete total column </sup>"
+              )%>% htmlTable::addHtmlTableStyle(col.rgroup = c("#FFF", "#EEF")) 
+```
+
+
+
+
+We also plotted box-plot for each of the variables to do a visual comparison of QOL between pre and post intervention.
+
+
+
+```{r  cache=F, warning=FALSE}
+angle=10;size = 0.8; jitter = 0.3;
+  value="domain_name";
+
+
+
+dataset$"Domain1 | Physical health (post test)"= dataset$domain1_post #- dataset$domain1_pre 
+dataset$"Domain2 | Psychological (post test)" = dataset$domain2_post #- dataset$domain2_pre
+dataset$"Domain3 | Social Relationship (post test)" = dataset$domain3_post #- dataset$domain3_pre
+dataset$"Domain4 | Environment (post test)"= dataset$domain4_post #- dataset$domain4_pre
+
+domain = dataset %>% select("Domain1 | Physical health (post test)","Domain2 | Psychological (post test)",
+                            "Domain3 | Social Relationship (post test)","Domain4 | Environment (post test)")
+
+domain %>% pivot_longer(
+           cols = starts_with("Domain"),names_to = "domain_name",values_to = "domain_value",values_drop_na = TRUE )%>%
+           ggboxplot(x ="domain_name", y = "domain_value",merge = TRUE,rug = TRUE ,   color = value, palette = "jco", shape = value,
+                      add.params = list(size = size, jitter = jitter),  repel = TRUE, subtitle = "", orientation = "horizontal")+
+                theme_minimal() +theme(axis.title = element_blank())+
+  theme(legend.position="none")
+
+
+
+
+
+```
+
+
+
+
+
+
+
+ 
+ 
+ 
+# QOL Bivariate Analysis
+
+
+
+
+ 
+##  QOL before and after support group (SG)
+
+This establishes the benefits of community-based alcohol support groups on the perceived quality of life of patients with alcohol and drug abuse disorders.
+
+```{r  align = 'center', warning=FALSE}
+
+domain1<- dataset %>% pivot_longer(
+           cols = starts_with("domain1_p"),names_to = "domain_label",values_to = "domain_value",values_drop_na = TRUE)%>%
+                  mutate(
+                    domain_name = factor(ifelse(domain_label=="domain1_post", "Post SG","Prior SG"), 
+                                         levels = c( "Prior SG","Post SG"))
+                  )
+domain2<- dataset %>% pivot_longer(
+           cols = starts_with("domain2_p"),names_to = "domain_label",values_to = "domain_value",values_drop_na = TRUE)%>%
+                  mutate(
+                    domain_name = factor(ifelse(domain_label=="domain2_post", "Post SG","Prior SG"), 
+                                         levels = c( "Prior SG","Post SG"))
+                  )
+domain3<- dataset %>% pivot_longer(
+           cols = starts_with("domain3_p"),names_to = "domain_label",values_to = "domain_value",values_drop_na = TRUE)%>%
+                  mutate(
+                    domain_name = factor(ifelse(domain_label=="domain3_post", "Post SG","Prior SG"), 
+                                         levels = c( "Prior SG","Post SG"))
+                  )
+domain4<- dataset %>% pivot_longer(
+           cols = starts_with("domain4_p"),names_to = "domain_label",values_to = "domain_value",values_drop_na = TRUE)%>%
+                  mutate(
+                    domain_name = factor(ifelse(domain_label=="domain4_post", "Post SG","Prior SG"), 
+                                         levels = c( "Prior SG","Post SG"))
+                  )
+na.rm.var=F;stats=T;outcome="domain_name";
+# Getting descriptive statistics 
+mergeDesc("Domain1 | Physical health" = getTable1Stats("domain_value","domain_name",desc_both,data=domain1,statistics=stats,na.rm=na.rm.var, header_count = F ),
+          "Domain2 | Psychological" = getTable1Stats("domain_value","domain_name",desc_both,data=domain2,statistics=stats,na.rm=na.rm.var, header_count = F ),
+          "Domain3 | Social Relationship" = getTable1Stats("domain_value","domain_name",desc_both,data=domain3,statistics=stats,na.rm=na.rm.var, header_count = F ),
+          "Domain4 | Environment" = getTable1Stats("domain_value","domain_name",desc_both,data=domain4,statistics=stats,na.rm=na.rm.var, header_count = F )
+         
+          ) %>%
+   htmlTable( caption  = "<b> QOL before and after support group (SG) </b>",useViewer=T,ctable = TRUE, align = 'lcccc',
+              n.cgroup = c(1,2,1 ), cgroup = c('', 'Quality of Life', '') ,tfoot="<sup>&Dagger; TODO: Please delete total column </sup>"
+              )%>% htmlTable::addHtmlTableStyle(col.rgroup = c("#FFF", "#EEF")) 
+```
+
+
+
+
+We also plotted box-plot for each of the variables to do a visual comparison of QOL between pre and post intervention.
+
+
+
+```{r  cache=F, warning=FALSE}
+angle=10;size = 0.8; jitter = 0.3;
+  value="domain_name";
+   p1<- dataset %>% pivot_longer(
+           cols = starts_with("domain1_p"),names_to = "domain_label",values_to = "domain_value",values_drop_na = TRUE )%>%
+                  mutate(
+                    domain_name = factor(ifelse(domain_label=="domain1_post", "Post Intervention","Prior Intervention"), 
+                                         levels = c( "Prior Intervention","Post Intervention"))
+                  )%>%
+           ggboxplot(x ="domain_name", y = "domain_value",merge = TRUE,rug = TRUE ,   color = value, palette = "jco", shape = value,
+                      add.params = list(size = size, jitter = jitter),  repel = TRUE, subtitle = "Domain1 | Physical health ")+
+                theme_minimal() +theme(axis.title = element_blank())
+
+   
+   p2<- dataset %>% pivot_longer(
+           cols = starts_with("domain2_p"),names_to = "domain_label",values_to = "domain_value",values_drop_na = TRUE )%>%
+                  mutate(
+                    domain_name = factor(ifelse(domain_label=="domain2_post", "Post Intervention","Prior Intervention"), 
+                                         levels = c( "Prior Intervention","Post Intervention"))
+                  )%>%
+           ggboxplot(x ="domain_name", y = "domain_value",merge = TRUE, color = value, palette = "jco",  shape = value,
+                      add.params = list(size = size, jitter = jitter),  repel = TRUE, subtitle = "Domain2 |  Psychological")+
+                 theme_minimal() +theme(axis.title = element_blank())
+   
+   p3<- dataset %>% pivot_longer(
+           cols = starts_with("domain3_p"),names_to = "domain_label",values_to = "domain_value",values_drop_na = TRUE )%>%
+                  mutate(
+                    domain_name = factor(ifelse(domain_label=="domain3_post", "Post Intervention","Prior Intervention"), 
+                                         levels = c( "Prior Intervention","Post Intervention"))
+                  )%>%
+           ggboxplot(x ="domain_name", y = "domain_value",merge = TRUE, color = value, palette = "jco", shape = value,
+                      add.params = list(size = size, jitter = jitter),  repel = TRUE, subtitle = "Domain3 |  Social Relationship")+
+               theme_minimal() +theme(axis.title = element_blank())
+   
+   
+   p4<-  dataset %>% pivot_longer(
+           cols = starts_with("domain4_p"),names_to = "domain_label",values_to = "domain_value",values_drop_na = TRUE )%>%
+                  mutate(
+                    domain_name = factor(ifelse(domain_label=="domain4_post", "Post Intervention","Prior Intervention"), 
+                                         levels = c( "Prior Intervention","Post Intervention"))
+                  )%>%
+           ggboxplot(x ="domain_name", y = "domain_value",merge = TRUE, color = value, palette = "jco", shape = value,
+                      add.params = list(size = size, jitter = jitter),  repel = TRUE, subtitle = "Domain4 | Environment")+
+                theme_minimal() +theme(axis.title = element_blank())
+   
+  legend = gtable_filter(ggplot_gtable(ggplot_build(p1 + theme(legend.position="right")+
+  theme(legend.title=element_blank()))), "guide-box")
+
+  
+ #grid.arrange(legend)
+ grid.arrange( 
+   
+   p1 + theme(legend.position="none"),
+   p2 + theme(legend.position="none"),
+   p3 + theme(legend.position="none"),
+   p4 + theme(legend.position="none")
+               ) 
+ 
+
+
+```
+
+
+clearly we are able to see a significant and substancial difference between prio and post support group intervention across the 4 domains
+
+
+##  Difference in QOL before and after support group (SG)
+
+
+
+
+```{r  cache=T, fig.width=5, warning=FALSE, eval=T}
+
+cont_univ_df <- dataset %>% select(
+              domain1_pre, domain1_post, domain2_pre, domain2_post, domain3_pre, domain3_post, domain4_pre, domain4_post,audit2,audit1,ismiscore,
+              ageoffirstdrink,age
+          ) %>% select_if(is.numeric) %>% dplyr::mutate(row_no =1:n() )
+
+univ_cat_df <- dataset %>% select(-alcoholicdrinkstakes,-othersubstances)%>%
+                  select_if(function(col) {is.factor(col) | is.character(col)})
+```
+
+
+To assess wheather there is any significant association between QOL difference (post - pre)  and  socio demographics  / baseline drinking characteristics across the 4 domains
+
+
+```{r  results="asis", cache=T, warning=FALSE}
+
+dataset$domain1_diff= dataset$domain1_post - dataset$domain1_pre 
+dataset$domain2_diff= dataset$domain2_post - dataset$domain2_pre
+dataset$domain3_diff= dataset$domain3_post - dataset$domain3_pre
+dataset$domain4_diff= dataset$domain4_post - dataset$domain4_pre
+
+angle=10;na.rm.var=T;stats=T;outcome="gender";
+for (value in  colnames(univ_cat_df))  { 
+  #print(value)
+  
+   n = length(unique(dataset[[value]]))
+  if(value=="income"){
+    n=n-1
+  }
+ 
+  if(value=="ageoffirstdrink_cat"|value=="hazardous_drinking1"| value=="hazardous_drinking2" | value=="alcohol_dependence1"| value=="alcohol_dependence2" ){
+    n=n-1
+  }
+ print(mergeDesc(
+            
+             "Domain1 | Physical health (post - pre)" = getTable1Stats("domain1_diff",value,desc_mean,statistics=stats,na.rm=na.rm.var),
+             "Domain2 | Psychological (post - pre)" = getTable1Stats("domain2_diff",value,desc_mean,statistics=stats,na.rm=na.rm.var),
+             "Domain3 | Social Relationship (post - pre)" = getTable1Stats("domain3_diff",value,desc_mean,statistics=stats,na.rm=na.rm.var),
+             "Domain4 | Environment (post - pre)" = getTable1Stats("domain4_diff",value,desc_mean,statistics=stats,na.rm=na.rm.var)
+            
+           
+            )%>%
+     htmlTable( caption  = paste0("Domain Comparison | ",value),useViewer=T,ctable = TRUE, align = 'lcccc',
+                n.cgroup = c(1,n,1 ), cgroup = c('', value, '') ,tfoot="<sup>&Dagger;</sup>"
+                )%>% htmlTable::addHtmlTableStyle(col.rgroup = c("#FFF", "#EEF")) )
+
+}
+
+```
+
+#  AUDIT Score before and after support group (SG)
+
+This establishes the benefits of community-based alcohol support groups on AUDIT Score of patients with alcohol and drug abuse disorders.
+
+```{r  align = 'center', warning=FALSE}
+
+dd = dataset %>% filter(!is.na(audit1)) %>% filter(!is.na(audit2))  %>%mutate(
+   `hazardous_drinking1` = if_else(audit1 >= 8, 'Yes (AUDIT >= 8)', 'No (AUDIT < 8)'),
+  `hazardous_drinking2` = if_else(audit2 >= 8, 'Yes (AUDIT >= 8)', 'No (AUDIT < 8)'),
+    hazardous_drinking1 =  if_else(is.na(audit1), NA_character_, hazardous_drinking1),
+    hazardous_drinking2 =  if_else(is.na(audit2), NA_character_, hazardous_drinking2),
+  
+  `alcohol_dependence1` = if_else(audit1 >= 13 & gender=="female", 'Yes (AUDIT >= 15 for male & >= 13 for female)', 'No (AUDIT < 15 for male & < 13 for female)'),
+  `alcohol_dependence1` = if_else(audit1 >= 15 & gender=="male", 'Yes (AUDIT >= 15 for male & >= 13 for female)', 'No (AUDIT < 15 for male & < 13 for female)'),
+  alcohol_dependence1 =  if_else(is.na(audit1), NA_character_, alcohol_dependence1),
+  
+  `alcohol_dependence2` = if_else(audit2 >= 13 & gender=="female", 'Yes (AUDIT >= 15 for male & >= 13 for female)', 'No (AUDIT < 15 for male & < 13 for female)'),
+  `alcohol_dependence2` = if_else(audit2 >= 15 & gender=="male", 'Yes (AUDIT >= 15 for male & >= 13 for female)', 'No (AUDIT < 15 for male & < 13 for female)'),
+  alcohol_dependence2 =  if_else(is.na(audit2), NA_character_, alcohol_dependence2),
+  
+    alcohol_dependence2 = as.factor(alcohol_dependence2),
+   alcohol_dependence1 = as.factor(alcohol_dependence1),
+    hazardous_drinking1 = as.factor(hazardous_drinking1),
+   hazardous_drinking2 = as.factor(hazardous_drinking2)
+  
+)
+
+audit1.df<- dd %>% pivot_longer(
+           cols = starts_with("audit"),names_to = "AUDIT_label",values_to = "AUDIT_value",values_drop_na = TRUE)%>%
+                  mutate(
+                    AUDIT_name = factor(ifelse(AUDIT_label=="audit2", "Post SG","Prior SG"), 
+                                         levels = c( "Prior SG","Post SG"))
+                  )
+
+audit1_cat.df<- dd %>% pivot_longer(
+           cols = starts_with("alcohol_dependence"),names_to = "AUDIT_label",values_to = "AUDIT_value",values_drop_na = TRUE)%>%
+                  mutate(
+                    AUDIT_name = factor(ifelse(AUDIT_label=="alcohol_dependence2", "Post SG","Prior SG"), 
+                                         levels = c( "Prior SG","Post SG"))
+                  )
+
+audit2_cat.df<- dd %>% pivot_longer(
+           cols = starts_with("hazardous_drinking"),names_to = "AUDIT_label",values_to = "AUDIT_value",values_drop_na = TRUE)%>%
+                  mutate(
+                    AUDIT_name = factor(ifelse(AUDIT_label=="hazardous_drinking2", "Post SG","Prior SG"), 
+                                         levels = c( "Prior SG","Post SG"))
+                  )
+
+na.rm.var=T;stats=T;outcome="AUDIT_name";
+# Getting descriptive statistics 
+mergeDesc("AUDIT Score" = getTable1Stats("AUDIT_value","AUDIT_name",desc_both,data=audit1.df,statistics=stats,na.rm=na.rm.var, header_count = F ),
+          "Alcohol Dependence" = getTable1Stats("AUDIT_value","AUDIT_name",desc_both,data=audit1_cat.df,statistics=stats,na.rm=na.rm.var, header_count = F ),
+          "Harmful or hazardous drinking" = getTable1Stats("AUDIT_value","AUDIT_name",desc_both,data=audit2_cat.df,statistics=stats,na.rm=na.rm.var, header_count = F )
+         
+          ) %>%
+   htmlTable( caption  = "<b> AUDIT Score before and after support group (SG) </b>",useViewer=T,ctable = TRUE, align = 'lcccc',
+              n.cgroup = c(1,2,1 ), cgroup = c('', 'AUDIT Score', '') ,tfoot="<sup>&Dagger; TODO: Please delete total column </sup>"
+              )%>% htmlTable::addHtmlTableStyle(col.rgroup = c("#FFF", "#EEF")) 
+```
+
+
+
